@@ -1,6 +1,6 @@
 import type { Point } from './types';
 
-const SIGNATURE_COLUMNS = 24;
+const SIGNATURE_COLUMNS = 16;
 
 /**
  * Convert page corners produced by imageAnalysis (source pixels) to the
@@ -42,11 +42,12 @@ export function makeFrameSignature(
       const x1 = Math.max(x0 + 1, Math.floor(((column + 1) * width) / columns));
       let sum = 0;
       let count = 0;
-      // Nine evenly distributed samples per cell avoid hashing one noisy pixel.
-      for (let sy = 0; sy < 3; sy++) {
-        const y = Math.min(height - 1, y0 + Math.floor(((sy + 0.5) * (y1 - y0)) / 3));
-        for (let sx = 0; sx < 3; sx++) {
-          const x = Math.min(width - 1, x0 + Math.floor(((sx + 0.5) * (x1 - x0)) / 3));
+      // A 5x5 sampling grid averages local detail and is less sensitive to
+      // one-pixel camera jitter than a sparse hash of exact coordinates.
+      for (let sy = 0; sy < 5; sy++) {
+        const y = Math.min(height - 1, y0 + Math.floor(((sy + 0.5) * (y1 - y0)) / 5));
+        for (let sx = 0; sx < 5; sx++) {
+          const x = Math.min(width - 1, x0 + Math.floor(((sx + 0.5) * (x1 - x0)) / 5));
           const offset = (y * width + x) * 4;
           sum += (0.2126 * rgba[offset] + 0.7152 * rgba[offset + 1] + 0.0722 * rgba[offset + 2]) / 255;
           count++;
