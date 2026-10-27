@@ -63,3 +63,18 @@ function makePageFrame(width: number, height: number, reverse: boolean, brightne
   }
   return pixels;
 }
+
+function shiftFrame(source: Uint8ClampedArray, width: number, height: number, shiftX: number): Uint8ClampedArray {
+  const shifted = new Uint8ClampedArray(source.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const from = (y * width + Math.max(0, x - shiftX)) * 4;
+      const to = (y * width + x) * 4;
+      shifted[to] = source[from];
+      shifted[to + 1] = source[from + 1];
+      shifted[to + 2] = source[from + 2];
+      shifted[to + 3] = 255;
+    }
+  }
+  return shifted;
+}
