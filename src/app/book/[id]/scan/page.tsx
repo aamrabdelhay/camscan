@@ -112,6 +112,7 @@ export default function ScanPage({ params }: Props) {
         bookId: book.id,
         order: nextOrder,
         originalImage: frame.blob,
+        skipThumbnail: true,
         width: frame.width,
         height: frame.height,
         language: book.settings.ocrLanguages[0]?.replace('ara', 'ar') ?? 'ar',
