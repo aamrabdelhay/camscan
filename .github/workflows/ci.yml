@@ -51,11 +51,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install PDF validation tools
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
       - name: Build production app
         run: npm run build
+      - name: Verify searchable PDF text layer
+        run: npm run verify:pdf
+      - name: Prepare deterministic camera video
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -loop 1 -framerate 15 -i tests/fixtures/page-photo.jpg \
+            -loop 1 -framerate 15 -i tests/fixtures/page-ar-en.jpg \
+            -filter_complex "[0:v]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,trim=duration=5,setpts=PTS-STARTPTS[a];[1:v]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=yuv420p,trim=duration=7,setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1:a=0[outv]" \
+            -map "[outv]" -r 15 -pix_fmt yuv420p -f yuv4mpegpipe /tmp/camscan-camera.y4m
       - name: Start app
         run: npm run start > /tmp/camscan.log 2>&1 &
       - name: Wait for health endpoint
@@ -70,6 +79,10 @@ jobs:
           exit 1
       - name: Run end-to-end acceptance
         run: npm run e2e
+      - name: Verify camera auto-capture and page-turn deduplication
+        env:
+          CAMSCAN_CAMERA_FILE: /tmp/camscan-camera.y4m
+        run: node e2e/camera-auto-capture.mjs
       - name: Upload acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,5 +91,6 @@ jobs:
           path: |
             e2e/generated/
             /tmp/camscan.log
+            /tmp/camscan-camera-auto-capture.png
           if-no-files-found: ignore
           retention-days: 7
