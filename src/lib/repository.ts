@@ -83,6 +83,8 @@ export interface Repository {
     order: number;
     originalImage: Blob;
     thumb?: string;
+    /** Skip synchronous thumbnail work when capture must be persisted immediately. */
+    skipThumbnail?: boolean;
     width: number;
     height: number;
     language?: string;
@@ -263,7 +265,7 @@ export function createLocalRepository(): Repository {
       const now = Date.now();
       const id = uid('pg');
       const originalBlobId = uid('bl');
-      const thumb = input.thumb ?? (await makeThumb(input.originalImage));
+      const thumb = input.thumb ?? (input.skipThumbnail ? undefined : await makeThumb(input.originalImage));
       const row: PageRow = {
         id,
         bookId: input.bookId,
