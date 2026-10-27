@@ -70,7 +70,7 @@ export function makeFrameSignature(
 export function frameSignaturesClose(
   a: readonly number[] | null | undefined,
   b: readonly number[] | null | undefined,
-  tolerance = 0.06,
+  tolerance = 0.08,
 ): boolean {
   if (!a || !b || a.length === 0 || a.length !== b.length) return false;
   let distance = 0;
