@@ -82,7 +82,7 @@ async function main() {
     await page.waitForFunction(() => {
       const video = document.querySelector('video');
       return Boolean(video && video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2);
-    }, { timeout: 12000 });
+    }, null, { timeout: 12000 });
 
     let first;
     try {
