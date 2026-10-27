@@ -118,6 +118,7 @@ export function useCamera(options: UseCameraOptions) {
   const lastQuadRef = useRef<Point[] | null>(null);
   const lastCaptureAtRef = useRef(0);
   const lastCaptureSignatureRef = useRef<number[] | null>(null);
+  const lastFrameSignatureRef = useRef<number[] | null>(null);
   const currentFrameSignatureRef = useRef<number[] | null>(null);
   const detectionSizeRef = useRef({ width: 480, height: 270 });
   const capturingRef = useRef(false);
@@ -150,6 +151,7 @@ export function useCamera(options: UseCameraOptions) {
       detectBusyRef.current = false;
       if (!data.ok || !data.result) {
         lastQuadRef.current = null;
+        lastFrameSignatureRef.current = null;
         stableSinceRef.current = null;
         setState((s) => (s.hint === 'no-page' && s.quad === null ? s : { ...s, quad: null, hint: 'no-page', stability: 0 }));
         return;
@@ -161,13 +163,22 @@ export function useCamera(options: UseCameraOptions) {
       const now = performance.now();
 
       // ----- stability / de-dup logic -----
-      const similar = points && lastQuadRef.current && quadsClose(points, lastQuadRef.current, 0.03);
-      if (points && similar) {
+      // Page bounds can stay static while a leaf is turning. Require both the
+      // geometry and page appearance to be stable before the shutter can fire.
+      const stableAppearance = frameSignaturesClose(frameSignature, lastFrameSignatureRef.current, 0.075);
+      const similar = Boolean(
+        points
+        && lastQuadRef.current
+        && quadsClose(points, lastQuadRef.current, 0.03)
+        && stableAppearance,
+      );
+      if (similar) {
         if (stableSinceRef.current === null) stableSinceRef.current = now;
       } else {
         stableSinceRef.current = null;
       }
       lastQuadRef.current = points;
+      lastFrameSignatureRef.current = frameSignature ? [...frameSignature] : null;
 
       const sinceCapture = now - lastCaptureAtRef.current;
       // A fixed camera often sees the next leaf at the exact same geometry.
@@ -192,7 +203,7 @@ export function useCamera(options: UseCameraOptions) {
       else if (severity['move-closer']) hint = 'move-closer';
       else if (warnings.length) hint = 'hold-steady';
 
-      const stableFor = stableSinceRef.current ? now - stableSinceRef.current : 0;
+      const stableFor = stableSinceRef.current !== null ? now - stableSinceRef.current : 0;
       const stability = Math.max(0, Math.min(1, stableFor / stableMs));
 
       setState((s) => ({
