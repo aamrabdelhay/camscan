@@ -31,12 +31,15 @@ describe('camera geometry and frame identity', () => {
     const height = 160;
     const pageA = makePageFrame(width, height, false);
     const pageAWithExposureShift = makePageFrame(width, height, false, 18);
+    const pageAShifted = shiftFrame(pageA, width, height, 4);
     const pageB = makePageFrame(width, height, true);
     const signatureA = makeFrameSignature(pageA, width, height);
     const signatureAChangedExposure = makeFrameSignature(pageAWithExposureShift, width, height);
+    const signatureAShifted = makeFrameSignature(pageAShifted, width, height);
     const signatureB = makeFrameSignature(pageB, width, height);
 
     expect(frameSignaturesClose(signatureA, signatureAChangedExposure)).toBe(true);
+    expect(frameSignaturesClose(signatureA, signatureAShifted)).toBe(true);
     expect(frameSignaturesClose(signatureA, signatureB)).toBe(false);
   });
 
