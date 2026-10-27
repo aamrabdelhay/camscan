@@ -105,19 +105,21 @@ export default function ScanPage({ params }: Props) {
     if (!book) return;
     const started = performance.now();
     try {
-      // 1. Persist the ORIGINAL image immediately, before any processing.
-      const thumb = await makeThumb(frame.blob, 160);
+      // 1. Persist the ORIGINAL capture first. Thumbnail generation is derived
+      // work and must never delay saving the only archival copy of the page.
       const nextOrder = pages.length ? Math.max(...pages.map((p) => p.order)) + 1 : 0;
       const page = await repo.addPage({
         bookId: book.id,
         order: nextOrder,
         originalImage: frame.blob,
-        thumb,
         width: frame.width,
         height: frame.height,
         language: book.settings.ocrLanguages[0]?.replace('ara', 'ar') ?? 'ar',
         direction: book.settings.ocrLanguages[0] === 'eng' ? 'ltr' : 'rtl',
       });
+      void makeThumb(frame.blob, 160)
+        .then((thumb) => repo.updatePage(page.id, { thumb }))
+        .catch((err) => console.warn('thumbnail generation failed; original page is safe', err));
       setRecentCaptureMs(Math.round(performance.now() - started));
 
       // 2. Queue processing in the background — do NOT await OCR.
