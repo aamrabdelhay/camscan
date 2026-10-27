@@ -34,3 +34,49 @@ jobs:
         run: npm test
       - name: ESLint
         run: npm run lint
+
+  e2e:
+    name: Browser acceptance (OCR, PDF, backup)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install PDF validation tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Build production app
+        run: npm run build
+      - name: Start app
+        run: npm run start > /tmp/camscan.log 2>&1 &
+      - name: Wait for health endpoint
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/camscan.log
+          exit 1
+      - name: Run end-to-end acceptance
+        run: npm run e2e
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: camscan-e2e-evidence
+          path: |
+            e2e/generated/
+            /tmp/camscan.log
+          if-no-files-found: ignore
+          retention-days: 7
