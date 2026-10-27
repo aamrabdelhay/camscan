@@ -38,6 +38,10 @@ export default function HomePage() {
   const [searching, setSearching] = useState(false);
   const [sort, setSort] = useState<SortKey>('recent');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [authorFilter, setAuthorFilter] = useState('');
+  const [languageFilter, setLanguageFilter] = useState('all');
+  const [createdAfter, setCreatedAfter] = useState('');
+  const [createdBefore, setCreatedBefore] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Book | null>(null);
   const [deleting, setDeleting] = useState<Book | null>(null);
@@ -86,12 +90,21 @@ export default function HomePage() {
     return [...map.entries()];
   }, [hits]);
 
+  const authors = useMemo(
+    () => [...new Set(books.map((book) => book.author?.trim()).filter((author): author is string => Boolean(author)))].sort((a, b) => a.localeCompare(b, lang === 'ar' ? 'ar' : 'en')),
+    [books, lang],
+  );
+
   const visibleBooks = useMemo(() => {
+    const from = createdAfter ? Date.parse(`${createdAfter}T00:00:00`) : Number.NEGATIVE_INFINITY;
+    const to = createdBefore ? Date.parse(`${createdBefore}T23:59:59.999`) : Number.POSITIVE_INFINITY;
     const filtered = books.filter((b) => {
-      if (statusFilter === 'all') return true;
-      if (statusFilter === 'scanning') return b.pageCount === 0 || b.doneCount + b.reviewCount < b.pageCount;
-      if (statusFilter === 'review') return b.reviewCount > 0;
-      if (statusFilter === 'done') return b.pageCount > 0 && b.reviewCount === 0 && b.doneCount === b.pageCount;
+      if (statusFilter === 'scanning' && !(b.pageCount === 0 || b.doneCount + b.reviewCount < b.pageCount)) return false;
+      if (statusFilter === 'review' && b.reviewCount <= 0) return false;
+      if (statusFilter === 'done' && !(b.pageCount > 0 && b.reviewCount === 0 && b.doneCount === b.pageCount)) return false;
+      if (authorFilter && (b.author?.trim() ?? '') !== authorFilter) return false;
+      if (languageFilter !== 'all' && b.language !== languageFilter && !(b.additionalLanguages ?? []).includes(languageFilter)) return false;
+      if (b.createdAt < from || b.createdAt > to) return false;
       return true;
     });
     const sorted = [...filtered];
@@ -102,7 +115,7 @@ export default function HomePage() {
       default: sorted.sort((a, b) => b.updatedAt - a.updatedAt);
     }
     return sorted;
-  }, [books, sort, statusFilter, lang]);
+  }, [books, sort, statusFilter, authorFilter, languageFilter, createdAfter, createdBefore, lang]);
 
   /* ---------------- actions ---------------- */
   const handleExport = useCallback(async (book: Book) => {
@@ -297,6 +310,58 @@ export default function HomePage() {
               <option value="title">{t(lang, 'sortTitle')}</option>
               <option value="pages">{t(lang, 'sortPages')}</option>
             </Select>
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+            <Select
+              aria-label={lang === 'ar' ? 'تصفية حسب المؤلف' : 'Filter by author'}
+              value={authorFilter}
+              onChange={(e) => setAuthorFilter(e.target.value)}
+              className="h-9 w-full text-sm"
+            >
+              <option value="">{lang === 'ar' ? 'كل المؤلفين' : 'All authors'}</option>
+              {authors.map((author) => <option key={author} value={author}>{author}</option>)}
+            </Select>
+            <Select
+              aria-label={lang === 'ar' ? 'تصفية حسب اللغة' : 'Filter by language'}
+              value={languageFilter}
+              onChange={(e) => setLanguageFilter(e.target.value)}
+              className="h-9 w-full text-sm"
+            >
+              <option value="all">{lang === 'ar' ? 'كل اللغات' : 'All languages'}</option>
+              {LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code}>{lang === 'ar' ? language.labelAr : language.label}</option>
+              ))}
+            </Select>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-[var(--camscan-text-muted)]">
+              <span>{lang === 'ar' ? 'من تاريخ الإضافة' : 'Added from'}</span>
+              <input
+                type="date"
+                value={createdAfter}
+                max={createdBefore || undefined}
+                onChange={(e) => setCreatedAfter(e.target.value)}
+                className="h-9 min-w-0 rounded-lg border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-2 text-sm text-[var(--camscan-text)]"
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-[var(--camscan-text-muted)]">
+              <span>{lang === 'ar' ? 'إلى تاريخ الإضافة' : 'Added to'}</span>
+              <input
+                type="date"
+                value={createdBefore}
+                min={createdAfter || undefined}
+                onChange={(e) => setCreatedBefore(e.target.value)}
+                className="h-9 min-w-0 rounded-lg border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-2 text-sm text-[var(--camscan-text)]"
+              />
+            </label>
+            <Button variant="ghost" onClick={() => {
+              setAuthorFilter('');
+              setLanguageFilter('all');
+              setCreatedAfter('');
+              setCreatedBefore('');
+              setStatusFilter('all');
+            }}>
+              {lang === 'ar' ? 'مسح التصفية' : 'Clear filters'}
+            </Button>
           </div>
 
           {!ready ? (
@@ -535,13 +600,33 @@ function AddBookDialog({
   const [author, setAuthor] = useState('');
   const [language, setLanguage] = useState<BookLanguage>('ar');
   const [more, setMore] = useState(false);
-  const [extra, setExtra] = useState({ subtitle: '', publisher: '', publicationYear: '', edition: '', isbn: '', category: '', description: '' });
+  const [extra, setExtra] = useState({
+    subtitle: '',
+    publisher: '',
+    publicationYear: '',
+    edition: '',
+    isbn: '',
+    category: '',
+    description: '',
+    notes: '',
+    additionalLanguages: [] as string[],
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
     setTitle(''); setAuthor(''); setLanguage('ar'); setMore(false); setError(null);
-    setExtra({ subtitle: '', publisher: '', publicationYear: '', edition: '', isbn: '', category: '', description: '' });
+    setExtra({
+      subtitle: '',
+      publisher: '',
+      publicationYear: '',
+      edition: '',
+      isbn: '',
+      category: '',
+      description: '',
+      notes: '',
+      additionalLanguages: [],
+    });
   };
 
   const submit = async () => {
@@ -619,10 +704,36 @@ function AddBookDialog({
             <Field label={t(lang, 'isbn')} value={extra.isbn} onChange={(e) => setExtra({ ...extra, isbn: e.target.value })} inputMode="numeric" />
             <Field label={t(lang, 'category')} value={extra.category} onChange={(e) => setExtra({ ...extra, category: e.target.value })} />
             <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium">{t(lang, 'additionalLanguages')}</label>
+              <select
+                multiple
+                size={Math.min(4, LANGUAGES.length)}
+                value={extra.additionalLanguages}
+                onChange={(e) => setExtra({ ...extra, additionalLanguages: Array.from(e.currentTarget.selectedOptions, (option) => option.value) })}
+                className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm"
+              >
+                {LANGUAGES.filter((item) => item.code !== language).map((item) => (
+                  <option key={item.code} value={item.code}>{lang === 'ar' ? item.labelAr : item.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--camscan-text-muted)]">
+                {lang === 'ar' ? 'يمكن اختيار أكثر من لغة باستخدام Ctrl أو ⌘.' : 'Select multiple languages with Ctrl or ⌘.'}
+              </p>
+            </div>
+            <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-medium">{t(lang, 'description')}</label>
               <textarea
                 value={extra.description}
                 onChange={(e) => setExtra({ ...extra, description: e.target.value })}
+                rows={2}
+                className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium">{t(lang, 'notes')}</label>
+              <textarea
+                value={extra.notes}
+                onChange={(e) => setExtra({ ...extra, notes: e.target.value })}
                 rows={2}
                 className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm"
               />
