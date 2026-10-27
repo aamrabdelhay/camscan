@@ -25,6 +25,8 @@ import { execFileSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pub = (...p) => path.join(root, 'public', ...p);
+// Keep Python build-only dependencies out of the deployed source tree and Git.
+const PYTHON_DEPS = path.join(root, '.python-deps');
 
 /* ------------------------------------------------------------------ */
 /* Manifest                                                            */
@@ -181,11 +183,48 @@ async function download(url, dest, { minSize = 1024 } = {}) {
 
 function haveFonttools() {
   try {
-    execFileSync('python3', ['-c', 'import fontTools, brotli'], { stdio: 'ignore' });
+    execFileSync('python3', ['-c', 'import fontTools, brotli'], { stdio: 'ignore', env: process.env });
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Install the asset-only Python tools into a project-local directory when the
+ * build image does not provide them. This avoids global/system Python writes
+ * and keeps local development and Vercel builds on the same path.
+ */
+async function ensureFonttools() {
+  process.env.PYTHONPATH = [PYTHON_DEPS, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+  if (haveFonttools()) return true;
+
+  await fs.mkdir(PYTHON_DEPS, { recursive: true });
+  const commonArgs = [
+    '-m', 'pip', 'install',
+    '--disable-pip-version-check',
+    '--no-warn-script-location',
+    '--target', PYTHON_DEPS,
+    'fonttools',
+    'brotli',
+  ];
+
+  // Some Python images enforce PEP 668 even for environments where pip can
+  // safely install into --target. Retry with the explicit override if needed.
+  for (const extraArgs of [[], ['--break-system-packages']]) {
+    try {
+      execFileSync('python3', [...commonArgs.slice(0, 4), ...extraArgs, ...commonArgs.slice(4)], {
+        stdio: 'inherit',
+        env: process.env,
+      });
+      if (haveFonttools()) return true;
+    } catch {
+      // Retry once with the compatibility flag below.
+    }
+  }
+
+  console.error('Could not make Python fonttools/brotli available. Install them with: python3 -m pip install fonttools brotli');
+  return false;
 }
 
 /** Pin a variable font to a static instance so pdfkit/PDF embed + sizing are predictable. */
@@ -243,10 +282,9 @@ async function main() {
   console.log('CamScan asset fetch');
   console.log('-------------------');
 
-  const canSubset = haveFonttools();
+  const canSubset = await ensureFonttools();
   if (!canSubset) {
-    console.warn('! fonttools/brotli not available — web WOFF2 subsets will be skipped.');
-    console.warn('  Install with: pip install fonttools brotli');
+    console.warn('! fonttools/brotli remains unavailable — variable fonts and WOFF2 subsets may fail.');
   }
 
   await fs.mkdir(pub('fonts', 'webfonts'), { recursive: true });
