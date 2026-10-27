@@ -3,7 +3,8 @@
  *
  * A backup contains, for every book:
  *   library.json                 – books, page models, text, settings
- *   images/<bookId>/<pageId>.jpg – the ORIGINAL captures (never derived)
+ *   images/<bookId>/<pageId>.jpg – original captures
+ *   images/<bookId>/<pageId>-processed.jpg – derived page images when present
  *   thumbs/<bookId>/<pageId>.txt – optional inline thumbnails
  *
  * Security & robustness
@@ -209,6 +210,15 @@ export async function importLibraryFromZip(
         stage: page.status === 'done' || page.status === 'review' ? 'done' : 'queued',
         progress: page.status === 'done' || page.status === 'review' ? 1 : 0,
       };
+      // Older archives may not contain processedPath; in that case the original
+      // photo remains the source of truth and restore continues normally.
+      const processedFile = typeof page.processedPath === 'string' ? zip.file(page.processedPath) : null;
+      if (processedFile) {
+        const processedBuffer = await processedFile.async('arraybuffer');
+        if (processedBuffer.byteLength > 0) {
+          patch.processedImage = new Blob([processedBuffer], { type: 'image/jpeg' });
+        }
+      }
       await repo.updatePage(stored.id, patch);
       // Thumbnails live outside the manifest to keep it small.
       const thumbFile = zip.file(`thumbs/${sanitizeSegment(entry.book.id)}/${sanitizeSegment(page.id)}.txt`);
