@@ -1,6 +1,6 @@
 import type { Point } from './types';
 
-const SIGNATURE_COLUMNS = 16;
+const SIGNATURE_COLUMNS = 24;
 
 /**
  * Convert page corners produced by imageAnalysis (source pixels) to the
