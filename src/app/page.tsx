@@ -118,7 +118,7 @@ export default function HomePage() {
   }, [books, sort, statusFilter, authorFilter, languageFilter, createdAfter, createdBefore, lang]);
 
   /* ---------------- actions ---------------- */
-  const handleExport = useCallback(async (book: Book) => {
+  const handleExport = useCallback(async (book: Book, appendOriginalPhotos = false) => {
     setBusy(book.id);
     setExportProgress({ bookId: book.id, value: 0 });
     try {
@@ -128,11 +128,16 @@ export default function HomePage() {
         push(lang === 'ar' ? 'لا توجد صفحات معالجة بعد' : 'No processed pages yet', 'warn');
         return;
       }
+      const pdfPages = await Promise.all(withModels.map(async (page) => ({
+        model: page.pageModel!,
+        ...(appendOriginalPhotos ? { originalJpeg: new Uint8Array(await page.originalImage.arrayBuffer()) } : {}),
+      })));
       const result = await exportBookToPdf({
         book,
-        pages: withModels.map((p) => ({ model: p.pageModel! })),
+        pages: pdfPages,
         mode: 'replica',
         includeTitlePage: true,
+        appendOriginalPhotos,
         onProgress: (done, total) => setExportProgress({ bookId: book.id, value: total ? done / total : 0 }),
       });
       downloadBlob(result.blob, safeFilename(book.title, 'pdf'));
@@ -442,7 +447,7 @@ function BookCard({
   lang: 'ar' | 'en';
   busy: boolean;
   exportProgress: number | null;
-  onExport: () => void;
+  onExport: (appendOriginalPhotos?: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -515,6 +520,9 @@ function BookCard({
             <MenuItem onClick={onEdit}>{t(lang, 'rename')}</MenuItem>
             <MenuItem onClick={() => { setMenuOpen(false); onExport(); }} disabled={busy || total === 0}>
               {busy ? <Spinner size={14} /> : null} {t(lang, 'exportPdf')}
+            </MenuItem>
+            <MenuItem onClick={() => { setMenuOpen(false); onExport(true); }} disabled={busy || total === 0}>
+              {lang === 'ar' ? 'تصدير PDF مع الصور الأصلية' : 'Export PDF with original photos'}
             </MenuItem>
             <MenuItem onClick={() => { setMenuOpen(false); onDelete(); }} danger>{t(lang, 'delete')}</MenuItem>
             <MenuItem onClick={() => setMenuOpen(false)}>{t(lang, 'close')}</MenuItem>
