@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* CamScan design tokens                                               */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-parchment-50: #fdfaf3;
+  --color-parchment-100: #f9f2e3;
+  --color-parchment-200: #f1e6cd;
+  --color-parchment-300: #e5d5b3;
+  --color-parchment-400: #d3bd93;
+  --color-parchment-500: #b9a077;
+  --color-ink-900: #241d12;
+  --color-ink-800: #33291a;
+  --color-ink-700: #4a3c26;
+  --color-ink-600: #64533a;
+  --color-ink-500: #857252;
+  --color-accent-50: #eef6f4;
+  --color-accent-100: #d6ebe6;
+  --color-accent-300: #86c9bb;
+  --color-accent-500: #2f8d7c;
+  --color-accent-600: #267364;
+  --color-accent-700: #1d5a4e;
+  --color-danger-500: #b3402f;
+  --color-danger-600: #94342a;
+  --color-warn-500: #b57b16;
+  --color-warn-100: #f8ecd2;
+
+  --font-arabic: "Amiri", "Scheherazade New", "Noto Naskh Arabic", serif;
+  --font-arabic-display: "Cairo", "Noto Kufi Arabic", sans-serif;
+  --font-latin: "EB Garamond", "Merriweather", serif;
+  --font-ui: "Inter", "Cairo", system-ui, sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --camscan-bg: var(--color-parchment-50);
+  --camscan-surface: #ffffff;
+  --camscan-surface-2: var(--color-parchment-100);
+  --camscan-border: var(--color-parchment-300);
+  --camscan-text: var(--color-ink-900);
+  --camscan-text-muted: var(--color-ink-600);
+  --camscan-accent: var(--color-accent-500);
+  --camscan-accent-contrast: #ffffff;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --camscan-bg: #14120f;
+  --camscan-surface: #1d1a16;
+  --camscan-surface-2: #26221d;
+  --camscan-border: #3a342c;
+  --camscan-text: #f2ead9;
+  --camscan-text-muted: #b9ac95;
+  --camscan-accent: var(--color-accent-300);
+  --camscan-accent-contrast: #10231f;
+}
+
+html,
+body {
+  background: var(--camscan-bg);
+  color: var(--camscan-text);
+}
+
+body {
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Visible focus ring everywhere — accessibility requirement. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-accent-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Respect reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Thin, unobtrusive scrollbars for the thumbnail rails. */
+.camscan-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--camscan-border) transparent;
+}
+.camscan-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.camscan-scroll::-webkit-scrollbar-thumb {
+  background: var(--camscan-border);
+  border-radius: 999px;
+}
+
+/* Arabic text in the replica must never be letter-spaced (breaks joining). */
+[dir="rtl"],
+.arabic {
+  letter-spacing: 0 !important;
+  font-feature-settings: "kern", "liga", "rlig", "calt", "mark", "mkmk";
+}
+
+/* Prevent iOS from zooming on input focus. */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+/* Utility: hide scrollbars where a rail is expected to be swiped. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Capture flash animation. */
+@keyframes camscan-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.capture-flash {
+  animation: camscan-flash 260ms ease-out forwards;
+}
+
+/* Print: only the replica pages, one per sheet, no chrome. */
+@media print {
+  @page {
+    margin: 0;
+  }
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page {
+    break-after: page;
+    box-shadow: none !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+}

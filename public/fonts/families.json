@@ -1,0 +1,147 @@
+{
+  "families": [
+    {
+      "id": "Amiri",
+      "cssName": "Amiri",
+      "script": "arabic",
+      "faces": [
+        {
+          "file": "Amiri-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "Amiri-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "ScheherazadeNew",
+      "cssName": "Scheherazade New",
+      "script": "arabic",
+      "faces": [
+        {
+          "file": "ScheherazadeNew-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "ScheherazadeNew-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "NotoNaskhArabic",
+      "cssName": "Noto Naskh Arabic",
+      "script": "arabic",
+      "faces": [
+        {
+          "file": "NotoNaskhArabic-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "NotoKufiArabic",
+      "cssName": "Noto Kufi Arabic",
+      "script": "arabic",
+      "faces": [
+        {
+          "file": "NotoKufiArabic-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "Cairo",
+      "cssName": "Cairo",
+      "script": "arabic",
+      "faces": [
+        {
+          "file": "Cairo-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "Cairo-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "EBGaramond",
+      "cssName": "EB Garamond",
+      "script": "latin",
+      "faces": [
+        {
+          "file": "EBGaramond-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "EBGaramond-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        },
+        {
+          "file": "EBGaramond-Italic.ttf",
+          "weight": 400,
+          "style": "italic"
+        }
+      ]
+    },
+    {
+      "id": "Merriweather",
+      "cssName": "Merriweather",
+      "script": "latin",
+      "faces": [
+        {
+          "file": "Merriweather-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "Merriweather-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "Inter",
+      "cssName": "Inter",
+      "script": "latin",
+      "faces": [
+        {
+          "file": "Inter-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        },
+        {
+          "file": "Inter-Bold.ttf",
+          "weight": 700,
+          "style": "normal"
+        }
+      ]
+    },
+    {
+      "id": "JetBrainsMono",
+      "cssName": "JetBrains Mono",
+      "script": "latin",
+      "faces": [
+        {
+          "file": "JetBrainsMono-Regular.ttf",
+          "weight": 400,
+          "style": "normal"
+        }
+      ]
+    }
+  ]
+}

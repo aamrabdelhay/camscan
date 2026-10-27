@@ -1,0 +1,51 @@
+{
+  "name": "camscan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CamScan — local-first digitization of old, fragile books into searchable, editable text replicas.",
+  "scripts": {
+    "assets": "node scripts/fetch-assets.mjs",
+    "build:workers": "node scripts/build-workers.mjs",
+    "predev": "npm run assets && npm run build:workers",
+    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "prebuild": "npm run assets && npm run build:workers",
+    "build": "next build",
+    "start": "next start -p 3000 -H 0.0.0.0",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify:pdf": "tsx scripts/verify-pdf.ts",
+    "e2e": "node e2e/acceptance.mjs"
+  },
+  "dependencies": {
+    "bidi-js": "^1.0.3",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "fontkit": "^2.0.4",
+    "jszip": "^3.10.1",
+    "minisearch": "^7.2.0",
+    "next": "16.4.3",
+    "pdfkit": "^0.20.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@tailwindcss/postcss": "^4.1.16",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.3",
+    "jpeg-js": "^0.4.4",
+    "playwright": "^1.56.0",
+    "pngjs": "^7.0.0",
+    "tailwindcss": "^4.1.16",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

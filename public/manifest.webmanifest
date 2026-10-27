@@ -1,0 +1,23 @@
+{
+  "name": "CamScan — نسخ رقمي للكتب",
+  "short_name": "CamScan",
+  "description": "Turn old, fragile paper books into searchable, editable digital replicas — locally, in your browser.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fdfaf3",
+  "theme_color": "#241d12",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["books", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Add book", "short_name": "Add", "url": "/?add=1" }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-10-27T20:00:46.085Z",
+  "langs": [
+    {
+      "code": "ara",
+      "en": "Arabic",
+      "ar": "العربية",
+      "sizeMB": 1.4,
+      "sizeBytes": 1432056
+    },
+    {
+      "code": "eng",
+      "en": "English",
+      "ar": "الإنجليزية",
+      "sizeMB": 4.1,
+      "sizeBytes": 4113088
+    },
+    {
+      "code": "fra",
+      "en": "French",
+      "ar": "الفرنسية",
+      "sizeMB": 1.1,
+      "sizeBytes": 1130365
+    },
+    {
+      "code": "deu",
+      "en": "German",
+      "ar": "الألمانية",
+      "sizeMB": 1.5,
+      "sizeBytes": 1525436
+    },
+    {
+      "code": "fas",
+      "en": "Persian",
+      "ar": "الفارسية",
+      "sizeMB": 0.43,
+      "sizeBytes": 431500
+    },
+    {
+      "code": "urd",
+      "en": "Urdu",
+      "ar": "الأردية",
+      "sizeMB": 1.4,
+      "sizeBytes": 1398718
+    },
+    {
+      "code": "tur",
+      "en": "Turkish",
+      "ar": "التركية",
+      "sizeMB": 4.6,
+      "sizeBytes": 4550554
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+dist
+public/workers
+public/fonts/*.ttf
+public/fonts/webfonts
+public/fonts/.raw
+public/tessdata/*.traineddata
+public/vendor
+e2e/generated
+coverage
+*.log
+.DS_Store
+.env*.local
+
+# TypeScript incremental build info
+*.tsbuildinfo
