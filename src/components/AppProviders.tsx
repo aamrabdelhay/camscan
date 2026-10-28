@@ -23,7 +23,7 @@ interface AppContextValue {
   /** 0..1 storage usage, or null when the API is unavailable. */
   storageRatio: number | null;
   /** Rebuilds the search index from IndexedDB (called on start/restore). */
-  refreshSearchIndex: () => Promise<number>;
+  refreshSearchIndex: (force?: boolean) => Promise<number>;
   /** Set when IndexedDB is unavailable (private mode, etc.). */
   fatalError: string | null;
 }
@@ -109,9 +109,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [ready, refreshStorage]);
 
-  const refreshSearchIndex = useCallback(async (): Promise<number> => {
+  const refreshSearchIndex = useCallback(async (force = false): Promise<number> => {
     if (!repo) return 0;
-    if (indexedRef.current) return getSearchIndex().size;
+    if (indexedRef.current && !force) return getSearchIndex().size;
     const books = await repo.listBooks();
     const rows: Array<{
       bookId: string; bookTitle: string; author?: string; pageId: string;

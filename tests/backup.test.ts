@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
 import { exportLibraryToZip, importLibraryFromZip } from '@/lib/backup';
 import type { Repository } from '@/lib/repository';
-import type { Book, PageRecord } from '@/lib/types';
+import type { AppSettings, Book, PageRecord } from '@/lib/types';
 
 const book = {
   id: 'book-1',
@@ -17,6 +17,18 @@ const book = {
   reviewCount: 0,
   failedCount: 0,
 } as unknown as Book;
+
+const savedSettings: AppSettings = {
+  id: 'app',
+  uiLanguage: 'en',
+  theme: 'dark',
+  ocrLanguages: ['eng', 'ara'],
+  captureProfile: 'smallPrint',
+  autoCapture: false,
+  reviewThreshold: 88,
+  hasSeenTips: true,
+  updatedAt: 123,
+};
 
 const page = {
   id: 'page-1',
@@ -48,13 +60,19 @@ describe('library backup restoration', () => {
     const sourceRepo = {
       listBooks: async () => [book],
       listPages: async () => [page],
-      getSettings: async () => ({}),
+      getSettings: async () => savedSettings,
     } as unknown as Repository;
 
     const archive = await exportLibraryToZip(sourceRepo);
     const zip = await JSZip.loadAsync(archive);
     const manifest = JSON.parse(await zip.file('library.json')!.async('string'));
     expect(manifest.manifest.books[0].pages[0].processedPath).toBeTruthy();
+    expect(manifest.settings).toMatchObject({
+      uiLanguage: 'en',
+      theme: 'dark',
+      autoCapture: false,
+      reviewThreshold: 88,
+    });
 
     const patches: Array<Partial<PageRecord>> = [];
     const restoreRepo = {
@@ -72,6 +90,15 @@ describe('library backup restoration', () => {
 
     const restored = await importLibraryFromZip(restoreRepo, archive);
     expect(restored.pages).toBe(1);
+    expect(restored.settings).toMatchObject({
+      uiLanguage: 'en',
+      theme: 'dark',
+      ocrLanguages: ['eng', 'ara'],
+      captureProfile: 'smallPrint',
+      autoCapture: false,
+      reviewThreshold: 88,
+      hasSeenTips: true,
+    });
     const imagePatch = patches.find((patch) => patch.processedImage);
     expect(imagePatch?.processedImage).toBeInstanceOf(Blob);
     expect(await imagePatch!.processedImage!.text()).toBe('processed-photo');

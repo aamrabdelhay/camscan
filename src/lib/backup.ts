@@ -16,7 +16,7 @@
  *    silently overwritten unless the user chose to import into the same db).
  */
 import JSZip from 'jszip';
-import type { Book, PageModel, PageRecord } from './types';
+import type { AppSettings, Book, PageModel, PageRecord } from './types';
 import type { Repository } from './repository';
 
 const BACKUP_VERSION = 1;
@@ -138,6 +138,8 @@ export interface RestoreSummary {
   books: number;
   pages: number;
   skipped: number;
+  /** Validated preferences exported with the archive, if it contains them. */
+  settings?: Partial<AppSettings>;
 }
 
 /** Parse + validate a backup ZIP and merge it into the local library. */
@@ -152,7 +154,7 @@ export async function importLibraryFromZip(
   const raw = await manifestFile.async('string');
   if (raw.length > 64 * 1024 * 1024) throw new Error('manifest too large');
 
-  let parsed: { manifest?: BackupManifest };
+  let parsed: { manifest?: BackupManifest; settings?: unknown };
   try {
     parsed = JSON.parse(raw);
   } catch {
@@ -238,12 +240,42 @@ export async function importLibraryFromZip(
   }
 
   onProgress?.(1);
-  return summary;
+  return { ...summary, settings: sanitizeAppSettings(parsed.settings) };
 }
 
 /* ------------------------------------------------------------------ */
 /* Validation                                                          */
 /* ------------------------------------------------------------------ */
+
+function sanitizeAppSettings(raw: unknown): Partial<AppSettings> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const value = raw as Record<string, unknown>;
+  const result: Partial<AppSettings> = {};
+
+  if (value.uiLanguage === 'ar' || value.uiLanguage === 'en') result.uiLanguage = value.uiLanguage;
+  if (value.theme === 'light' || value.theme === 'dark' || value.theme === 'system') result.theme = value.theme;
+
+  if (Array.isArray(value.ocrLanguages)) {
+    const languages = [...new Set(value.ocrLanguages.filter(
+      (item): item is string => typeof item === 'string' && /^[a-z]{3,8}$/i.test(item),
+    ))].slice(0, 12);
+    if (languages.length) result.ocrLanguages = languages;
+  }
+
+  const profiles = ['standard', 'fragile', 'smallPrint', 'fadedInk', 'historical'] as const;
+  if (typeof value.captureProfile === 'string' && profiles.includes(value.captureProfile as (typeof profiles)[number])) {
+    result.captureProfile = value.captureProfile as AppSettings['captureProfile'];
+  }
+  if (typeof value.autoCapture === 'boolean') result.autoCapture = value.autoCapture;
+  if (typeof value.reviewThreshold === 'number' && Number.isFinite(value.reviewThreshold)) {
+    result.reviewThreshold = Math.max(0, Math.min(100, value.reviewThreshold));
+  }
+  if (typeof value.hasSeenTips === 'boolean') result.hasSeenTips = value.hasSeenTips;
+
+  // lastBookId is intentionally not restored: imports can rename IDs when
+  // merging into a non-empty library, so a previous pointer may be stale.
+  return Object.keys(result).length ? result : undefined;
+}
 
 function sanitizeSegment(value: unknown): string {
   return String(value ?? '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);

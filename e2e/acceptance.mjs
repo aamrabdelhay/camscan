@@ -353,6 +353,14 @@ async function main() {
   check('restore kept the page models', restored.models >= 1);
   check('restore kept the manual edit flag', restored.edits >= 1);
 
+  const globalSearchAfterRestore = page.locator('#global-search');
+  await globalSearchAfterRestore.fill('نص صحيح للاختبار العربي');
+  const restoredSearchHit = await waitFor('restored text searchable without reload', async () => {
+    const body = await page.locator('body').innerText();
+    return body.includes('نص صحيح للاختبار العربي') ? body : null;
+  }, 15000, 250);
+  check('restored text is searchable without reloading the app', Boolean(restoredSearchHit));
+
   /* ---------------------------------------------------------------- */
   console.log('\n── 8. Failure path: corrupt capture must not lose data ──');
   const failResult = await page.evaluate(async () => {

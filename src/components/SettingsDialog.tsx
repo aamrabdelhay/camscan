@@ -54,7 +54,11 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
     setRestoreProgress(0);
     try {
       const summary = await importLibraryFromZip(repo, file, (p) => setRestoreProgress(p));
-      await refreshSearchIndex();
+      if (summary.settings) await updateSettings(summary.settings);
+      // Restore runs after initial app boot, when the search index is already
+      // marked initialized. Force rebuilding so restored text is searchable
+      // immediately without asking the user to reload the page.
+      await refreshSearchIndex(true);
       push(`${t(lang, 'backupRestoreDone')} — ${summary.books} ${t(lang, 'books')} · ${summary.pages} ${t(lang, 'pages')}`, 'success', 6000);
       onClose();
     } catch (err) {
