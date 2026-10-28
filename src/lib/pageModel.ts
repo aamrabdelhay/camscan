@@ -322,15 +322,14 @@ export function mergeLinesIntoBlocks(
  * Arabic and English both get a space; a trailing hyphen in Latin text that is
  * followed by a lower-case letter is treated as a soft hyphen and removed.
  */
-export function joinLines(a: string, b: string, direction: TextDirection): string {
+export function joinLines(a: string, b: string, _direction: TextDirection): string {
   const left = a.replace(/\s+$/, '');
   const right = b.replace(/^\s+/, '');
   if (!left) return right;
   if (!right) return left;
-  if (direction === 'ltr' && /[a-zA-Z]-$/.test(left) && /^[a-z]/.test(right)) {
-    return `${left.slice(0, -1)}${right}`;
-  }
-  return `${left} ${right}`;
+  // Physical line boundaries are part of the transcription. Never remove a
+  // printed end-of-line hyphen or join a word across lines during recognition.
+  return `${left}\n${right}`;
 }
 
 function avgConfidence(lines: OcrObservation[]): number {
@@ -722,11 +721,9 @@ export function buildPageModel(lines: OcrObservation[], opts: BuildOptions): Pag
       lineHeight: mb.lines.length > 1
         ? fitLineHeight(mb.box.h, mb.lines.length, fontSize)
         : 1.25,
-      lines: mb.lines.length > 1
-        ? [...mb.lines]
-            .sort((a, b) => a.bbox.y - b.bbox.y || b.bbox.x - a.bbox.x)
-            .map((l) => ({ text: l.text.trim(), bbox: l.bbox }))
-        : undefined,
+      lines: [...mb.lines]
+        .sort((a, b) => a.bbox.y - b.bbox.y || b.bbox.x - a.bbox.x)
+        .map((l) => ({ text: l.text, bbox: l.bbox, confidence: l.confidence })),
       text,
       confidence,
       uncertain: confidence < blockReviewThreshold || lowWords || overlapsArt,
