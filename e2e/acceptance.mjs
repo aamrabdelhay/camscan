@@ -305,14 +305,14 @@ async function main() {
   const appendixPath = path.join(outDir, 'camscan-photo-appendix.pdf');
   await appendixDownload.saveAs(appendixPath);
   const appendixInfo = execFileSync('pdfinfo', [appendixPath], { encoding: 'utf8' });
-  const appendixPageCount = Number(appendixInfo.match(/Pages:\\s+(\\d+)/)?.[1] ?? 0);
+  const appendixPageCount = Number(appendixInfo.match(/Pages:\s+(\d+)/)?.[1] ?? 0);
   const replicaPageCount = pageCount - 1;
   check('photo appendix adds one original photograph per replica page', appendixPageCount === 1 + replicaPageCount * 2, `${appendixPageCount} pages`);
   const appendixText = execFileSync('pdftotext', [appendixPath, '-'], { encoding: 'utf8' });
   check('photo appendix export keeps selectable Arabic text', appendixText.includes('نص صحيح للاختبار العربي'));
   let appendixImageCount = 0;
   try {
-    appendixImageCount = Number(execFileSync('pdfimages', ['-list', appendixPath], { encoding: 'utf8' }).trim().split('\\n').length - 2);
+    appendixImageCount = Number(execFileSync('pdfimages', ['-list', appendixPath], { encoding: 'utf8' }).trim().split('\n').length - 2);
   } catch { appendixImageCount = 0; }
   check('photo appendix contains embedded original page photographs', appendixImageCount >= replicaPageCount, `${appendixImageCount} embedded image(s)`);
 
