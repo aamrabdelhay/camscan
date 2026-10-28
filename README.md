@@ -8,8 +8,7 @@ rebuilds the page as **real HTML text** — not a picture of a page. Every page 
 typography, sampled paper colour and ink colour, and can be edited, searched and exported to a PDF
 with a genuine text layer.
 
-Nothing is uploaded. The camera frames, the recognised text and the reconstructed pages stay in
-IndexedDB on the device.
+By default, nothing is uploaded: camera frames, recognised text and reconstructed pages stay in IndexedDB on the device. The optional AI assistant is separate: only when a user explicitly agrees and submits a request, the selected OCR text (never page images) is sent to Puter.js for analysis. Its user-pays model may require sign-in and is subject to the user's quota and terms; free use is not unlimited or guaranteed forever.
 
 ---
 
@@ -91,6 +90,16 @@ Four views: **Replica** (real text), **Original** (the rectified image, with a o
 untouched capture), **Side-by-side** (proofreading), **Comfortable** (single reflowed column at a
 readable size). Per-book search with highlighted matches, zoom, page navigation, and an editor for
 block text plus font/type/alignment/size/colour.
+
+### Optional AI assistant (cloud, opt-in)
+
+From the book reader, users can ask the assistant to summarise, explain, translate, review likely OCR errors, or answer a question about recognised text. This is separate from transcription: the assistant never silently corrects, overwrites or reprocesses saved OCR text.
+
+- Local Tesseract remains the default OCR engine and works without an AI API key.
+- The Puter.js SDK is loaded only when the user checks the consent box and explicitly submits an AI request.
+- By default, only the current page is sent; the user may choose book text, capped at 12,000 characters. Page images are never sent to the assistant.
+- Puter requires no project API key, but its user-pays model may require the end user to sign in and is subject to account quotas and provider terms. This does not guarantee unlimited free use.
+- Do not send confidential, privileged, or restricted text unless you are authorised to share it with the provider.
 
 ### Editing and review
 - Edits create **revisions**; the original OCR text is kept, and reprocessing **does not overwrite
