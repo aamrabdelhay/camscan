@@ -96,11 +96,21 @@ describe('mergeLinesIntoBlocks', () => {
     const lines = [line('السطر الأول من الفقرة', 0.3), line('والسطر الثاني يكملها', 0.33), line('وهذا سطر ثالث طويل أيضًا', 0.36)];
     const blocks = mergeLinesIntoBlocks(lines, 'rtl', 0.684);
     expect(blocks).toHaveLength(1);
-    // Joined with spaces for the flowing text...
-    expect(blocks[0].text).toBe('السطر الأول من الفقرة والسطر الثاني يكملها وهذا سطر ثالث طويل أيضًا');
+    // Physical line breaks are part of the transcription.
+    expect(blocks[0].text).toBe('السطر الأول من الفقرة\nوالسطر الثاني يكملها\nوهذا سطر ثالث طويل أيضًا');
     // ...but every source line is kept separately for exact placement.
     expect(blocks[0].lines).toHaveLength(3);
     expect(blocks[0].lines!.map((l) => l.bbox.y)).toEqual([0.3, 0.33, 0.36]);
+  });
+
+  it('preserves printed line-end hyphens and the physical line break', () => {
+    const blocks = mergeLinesIntoBlocks([
+      line('inter-', 0.3, { bbox: { x: 0.1, y: 0.3, w: 0.2, h: 0.022 } }),
+      line('national', 0.33, { bbox: { x: 0.1, y: 0.33, w: 0.2, h: 0.022 } }),
+    ], 'ltr', 0.684);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].text).toBe('inter-\nnational');
+    expect(blocks[0].lines.map((item) => item.text)).toEqual(['inter-', 'national']);
   });
 
   it('never merges lines that are far apart vertically', () => {
