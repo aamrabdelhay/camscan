@@ -796,7 +796,7 @@ function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose
 
   if (!book) return null;
 
-  const updateDetail = <K extends keyof typeof details>(key: K, value: (typeof details)[K]) => {
+  const updateDetail = <K extends keyof typeof details,>(key: K, value: (typeof details)[K]) => {
     setDetails((current) => ({ ...current, [key]: value }));
   };
 
