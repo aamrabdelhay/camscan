@@ -4,9 +4,10 @@
  * Optional cloud-based AI tools for CamScan's OCR text.
  *
  * Privacy by design:
- * - No external script is loaded until the user explicitly starts an AI request.
  * - The user must acknowledge that selected text will leave the device.
  * - Only text is sent; captured page images and the local library are never sent.
+ * - The endpoint pins every request to OpenRouter's $0 free router with no paid fallback.
+ * - API keys are kept in component memory only and cleared when the dialog closes.
  * - AI output is displayed separately and never overwrites OCR text or edits.
  */
 import { useState } from 'react';
@@ -26,98 +27,8 @@ interface FreeAiDialogProps {
   bookText: string;
 }
 
-interface PuterApi {
-  ai: {
-    chat: (prompt: string, options: { model: string }) => Promise<unknown>;
-  };
-}
-
-declare global {
-  interface Window {
-    puter?: PuterApi;
-  }
-}
-
-const PUTER_SCRIPT_SRC = 'https://js.puter.com/v2/';
-const MODEL_ID = 'google/gemini-3.1-pro-preview';
+const MODEL_ID = 'openrouter/free';
 const MAX_CONTEXT_CHARS = 12_000;
-
-function loadPuter(): Promise<void> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('AI is only available in the browser.'));
-  }
-  if (window.puter?.ai?.chat) return Promise.resolve();
-
-  return new Promise((resolve, reject) => {
-    let existing = document.querySelector<HTMLScriptElement>('script[data-camscan-puter]');
-    if (existing?.dataset.camscanFailed === 'true') {
-      existing.remove();
-      existing = null;
-    }
-    if (existing?.dataset.camscanLoaded === 'true' && !window.puter?.ai?.chat) {
-      existing.remove();
-      existing = null;
-    }
-    const script = existing ?? document.createElement('script');
-    let settled = false;
-
-    const clean = () => {
-      script.removeEventListener('load', onLoad);
-      script.removeEventListener('error', onError);
-    };
-    const onLoad = () => {
-      if (settled) return;
-      settled = true;
-      clean();
-      script.dataset.camscanLoaded = 'true';
-      if (window.puter?.ai?.chat) resolve();
-      else reject(new Error('Puter loaded but its AI API was not available. Try again.'));
-    };
-    const onError = () => {
-      if (settled) return;
-      settled = true;
-      clean();
-      script.dataset.camscanFailed = 'true';
-      script.remove();
-      reject(new Error('Could not load the AI service. Check your internet connection and try again.'));
-    };
-
-    script.addEventListener('load', onLoad, { once: true });
-    script.addEventListener('error', onError, { once: true });
-    if (!existing) {
-      script.src = PUTER_SCRIPT_SRC;
-      script.async = true;
-      script.dataset.camscanPuter = 'true';
-      document.head.appendChild(script);
-    } else if (script.dataset.camscanLoaded === 'true' && window.puter?.ai?.chat) {
-      onLoad();
-    }
-  });
-}
-
-function extractResponseText(value: unknown): string {
-  if (typeof value === 'string') return value.trim();
-  if (!value || typeof value !== 'object') return '';
-
-  const obj = value as Record<string, unknown>;
-  const message = obj.message && typeof obj.message === 'object'
-    ? obj.message as Record<string, unknown>
-    : undefined;
-  const candidates = [obj.text, message?.content, obj.content, obj.result];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
-    if (Array.isArray(candidate)) {
-      const text = candidate
-        .map((part) => part && typeof part === 'object' ? (part as Record<string, unknown>).text : '')
-        .filter((part): part is string => typeof part === 'string' && Boolean(part.trim()))
-        .join('\n')
-        .trim();
-      if (text) return text;
-    }
-  }
-  return '';
-}
 
 function buildPrompt(task: Task, question: string, content: string, lang: UiLanguage, targetLanguage: 'ar' | 'en'): string {
   const responseLanguage = lang === 'ar' ? 'Arabic' : 'English';
@@ -158,6 +69,7 @@ export function FreeAiDialog({
   const [scope, setScope] = useState<SourceScope>('page');
   const [targetLanguage, setTargetLanguage] = useState<'ar' | 'en'>(ar ? 'en' : 'ar');
   const [question, setQuestion] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [output, setOutput] = useState('');
@@ -167,11 +79,13 @@ export function FreeAiDialog({
   const rawText = scope === 'page' ? pageText : bookText;
   const sourceText = rawText.trim().slice(0, MAX_CONTEXT_CHARS);
   const wasTruncated = rawText.trim().length > MAX_CONTEXT_CHARS;
-  const canRun = Boolean(sourceText) && consent && !busy && (task !== 'ask' || Boolean(question.trim()));
+  const canRun = Boolean(sourceText) && Boolean(apiKey.trim()) && consent && !busy && (task !== 'ask' || Boolean(question.trim()));
 
   const resetForClose = () => {
     if (busy) return;
     setError('');
+    setApiKey('');
+    setConsent(false);
     onClose();
   };
 
@@ -182,17 +96,29 @@ export function FreeAiDialog({
     setOutput('');
     setModelUsed('');
     try {
-      // The only network request is initiated by this explicit user action
-      // after consent has been checked.
-      await loadPuter();
-      if (!window.puter?.ai?.chat) throw new Error('The AI service is unavailable right now. Try again later.');
-
+      // Only this explicit, consented request sends text/key to the free-only endpoint.
       const prompt = buildPrompt(task, question, sourceText, lang, targetLanguage);
-      const response = await window.puter.ai.chat(prompt, { model: MODEL_ID });
-      const text = extractResponseText(response);
-      if (!text) throw new Error('The AI service returned an empty or unsupported response.');
+      const response = await fetch('/api/ai/free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ apiKey: apiKey.trim(), prompt }),
+      });
+      const result: unknown = await response.json().catch(() => null);
+      const resultRecord = result && typeof result === 'object'
+        ? result as Record<string, unknown>
+        : {};
+      if (!response.ok) {
+        throw new Error(
+          typeof resultRecord.error === 'string'
+            ? resultRecord.error
+            : 'The free AI request failed. Check your key and try again.',
+        );
+      }
+      const text = typeof resultRecord.text === 'string' ? resultRecord.text.trim() : '';
+      if (!text) throw new Error('The free AI provider returned an empty response.');
       setOutput(text);
-      setModelUsed(MODEL_ID);
+      setModelUsed(typeof resultRecord.model === 'string' ? resultRecord.model : MODEL_ID);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -227,8 +153,8 @@ export function FreeAiDialog({
           </p>
           <p className="mt-2 text-xs leading-5 text-[var(--camscan-text-muted)]">
             {ar
-              ? 'تظل صور الكتاب والنص الأصلي المحفوظ داخل CamScan. عند الضغط على زر التحليل بعد الموافقة، يُرسل النص المحدد فقط إلى Puter لتشغيل نموذج الذكاء الاصطناعي.'
-              : 'Your book images and saved OCR text stay in CamScan. After you consent and press Analyse, only the selected text is sent to Puter to run the AI model.'}
+              ? 'صور الكتاب والنص الأصلي لا يُرسلان. بعد الموافقة، يُرسل النص المحدد فقط إلى موجّه OpenRouter المجاني بسعر صفر، من خلال CamScan، من دون أي تحويل لنموذج مدفوع.'
+              : 'Your book images and saved OCR text stay in CamScan. After consent, only the selected OCR text is sent through CamScan to OpenRouter’s $0 free-model router. No paid fallback is used.'}
           </p>
         </div>
 
@@ -300,6 +226,30 @@ export function FreeAiDialog({
           </p>
         ) : null}
 
+        <div className="space-y-2">
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium">{ar ? 'مفتاح OpenRouter المجاني' : 'Free OpenRouter API key'}</span>
+            <input
+              type="password"
+              name="openrouter-api-key"
+              autoComplete="off"
+              spellCheck={false}
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              disabled={busy}
+              placeholder={ar ? 'أدخل المفتاح هنا؛ لن يُحفظ بعد إغلاق النافذة' : 'Enter the key; it will not be saved after closing'}
+              className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 font-mono text-sm"
+            />
+          </label>
+          <p className="text-xs leading-5 text-[var(--camscan-text-muted)]">
+            {ar ? 'أنشئ مفتاحًا من ' : 'Create a key at '}
+            <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+              OpenRouter API Keys
+            </a>
+            {ar ? '. استخدم حسابًا مجانيًا فقط؛ لن يطلب CamScan رصيدًا ولن يحدد أي موديل مدفوع.' : '. Use a free account; CamScan will not require credits or select a paid model.'}
+          </p>
+        </div>
+
         <label className="flex items-start gap-2 rounded-xl border border-[var(--camscan-border)] p-3 text-sm">
           <input
             type="checkbox"
@@ -310,12 +260,16 @@ export function FreeAiDialog({
           />
           <span>
             <span className="font-medium">
-              {ar ? 'أوافق على إرسال النص المحدد إلى خدمة خارجية' : 'I agree to send the selected text to an external service'}
+              {ar ? 'أوافق على إرسال النص ومفتاح API لهذا الطلب فقط' : 'I agree to send the selected text and API key for this request'}
             </span>
             <span className="mt-1 block text-xs leading-5 text-[var(--camscan-text-muted)]">
               {ar
-                ? 'Puter.js لا يحتاج مفتاح API خاصًا بالمشروع، لكن قد يتطلب تسجيل الدخول، وتخضع الخدمة للحصة والشروط وسياسة الحساب. ليست خدمة مضمونة بلا حدود أو ضمانًا لاستمرار المجانية. لا ترسل نصوصًا سرية أو محمية إلا إذا كان ذلك مسموحًا لك.'
-                : 'Puter.js does not require a project API key, but may require sign-in and is subject to account quotas, terms and policies. Free access is not unlimited or guaranteed forever. Do not submit confidential or restricted text unless you are authorised to do so.'}
+                ? 'يُستخدم المسار openrouter/free ذي السعر صفر فقط، من دون بدائل مدفوعة. لا تُحفظ المفاتيح في localStorage أو قاعدة البيانات، وتُمسح من الواجهة عند إغلاق النافذة. قد تظل هناك حدود يومية وتغيّر في توفر النماذج المجانية.'
+                : 'Only the $0 openrouter/free route is used, with no paid fallback. The key is not stored in localStorage or a database and is cleared from the dialog when you close it. Free models can be rate-limited or temporarily unavailable.'}
+              {' '}
+              {ar
+                ? 'لا ترسل نصوصًا سرية أو محمية إلا إذا كان مسموحًا لك مشاركتها مع المزود.'
+                : 'Do not submit confidential or restricted text unless you are authorised to share it with the provider.'}
             </span>
           </span>
         </label>
@@ -331,7 +285,7 @@ export function FreeAiDialog({
             <p className="font-medium">{ar ? 'تعذر إكمال طلب الذكاء الاصطناعي' : 'The AI request failed'}</p>
             <p className="mt-1 break-words">{error}</p>
             <p className="mt-1 text-xs text-[var(--camscan-text-muted)]">
-              {ar ? 'تحقق من الاتصال وحصة الحساب، ثم أعد المحاولة.' : 'Check your connection and account quota, then try again.'}
+              {ar ? 'تحقق من مفتاح OpenRouter وحدود النماذج المجانية، ثم أعد المحاولة.' : 'Check your OpenRouter key and free-model limits, then retry.'}
             </p>
           </div>
         ) : null}
