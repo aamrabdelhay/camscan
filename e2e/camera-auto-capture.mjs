@@ -87,7 +87,7 @@ async function main() {
     const measureOverlayAspect = () => page.evaluate(() => {
       const video = document.querySelector('video');
       const overlay = document.querySelector('[data-testid="camera-quad-overlay"]');
-      const values = overlay?.getAttribute('viewBox')?.trim().split(/\\s+/).map(Number);
+      const values = overlay?.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
       const videoAspect = video && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 0;
       const overlayAspect = values && values.length === 4 && values[3] > 0 ? values[2] / values[3] : 0;
       return {
@@ -103,7 +103,7 @@ async function main() {
     const overlayMatchesVideo = await page.waitForFunction(() => {
       const video = document.querySelector('video');
       const overlay = document.querySelector('[data-testid="camera-quad-overlay"]');
-      const values = overlay?.getAttribute('viewBox')?.trim().split(/\\s+/).map(Number);
+      const values = overlay?.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
       if (!video || !overlay || !values || values.length !== 4 || video.videoHeight === 0 || values[3] <= 0) return false;
       return Math.abs((values[2] / values[3]) - (video.videoWidth / video.videoHeight)) < 0.01;
     }, null, { timeout: 5000 }).then(() => true).catch(() => false);
