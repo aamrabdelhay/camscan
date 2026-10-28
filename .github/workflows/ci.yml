@@ -1,0 +1,97 @@
+name: CamScan CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: camscan-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: ESLint
+        run: npm run lint
+
+  e2e:
+    name: Browser acceptance (OCR, PDF, backup)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install PDF validation tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils ffmpeg
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Build production app
+        run: npm run build
+      - name: Verify searchable PDF text layer
+        run: npm run verify:pdf
+      - name: Prepare deterministic camera video
+        run: |
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "color=c=0x454545:s=640x480:r=15:d=10" \
+            -f lavfi -i "color=c=0x454545:s=640x480:r=15:d=10" \
+            -filter_complex "[0:v]drawbox=x=18:y=18:w=604:h=444:color=0xf5ecd8:t=fill,drawbox=x=65:y=70:w=500:h=7:color=0x252525:t=fill,drawbox=x=80:y=108:w=455:h=5:color=0x303030:t=fill,drawbox=x=55:y=140:w=510:h=5:color=0x303030:t=fill,drawbox=x=90:y=173:w=430:h=5:color=0x303030:t=fill,drawbox=x=60:y=206:w=480:h=5:color=0x303030:t=fill,drawbox=x=95:y=239:w=420:h=5:color=0x303030:t=fill,drawbox=x=65:y=272:w=500:h=5:color=0x303030:t=fill,drawbox=x=80:y=305:w=455:h=5:color=0x303030:t=fill,drawbox=x=55:y=338:w=510:h=5:color=0x303030:t=fill,drawbox=x=90:y=371:w=430:h=5:color=0x303030:t=fill,format=yuv420p,setsar=1,setpts=PTS-STARTPTS[a];[1:v]drawbox=x=18:y=18:w=604:h=444:color=0xf5ecd8:t=fill,drawbox=x=65:y=70:w=330:h=7:color=0x252525:t=fill,drawbox=x=80:y=108:w=455:h=5:color=0x303030:t=fill,drawbox=x=55:y=140:w=260:h=5:color=0x303030:t=fill,drawbox=x=90:y=173:w=430:h=5:color=0x303030:t=fill,drawbox=x=60:y=206:w=300:h=5:color=0x303030:t=fill,drawbox=x=95:y=239:w=420:h=5:color=0x303030:t=fill,drawbox=x=65:y=272:w=280:h=5:color=0x303030:t=fill,drawbox=x=80:y=305:w=455:h=5:color=0x303030:t=fill,drawbox=x=55:y=338:w=340:h=5:color=0x303030:t=fill,drawbox=x=90:y=371:w=430:h=5:color=0x303030:t=fill,format=yuv420p,setsar=1,setpts=PTS-STARTPTS[b];[a][b]concat=n=2:v=1:a=0[outv]" \
+            -map "[outv]" -r 15 -pix_fmt yuv420p -f yuv4mpegpipe /tmp/camscan-camera.y4m
+      - name: Start app
+        run: npm run start > /tmp/camscan.log 2>&1 &
+      - name: Wait for health endpoint
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/camscan.log
+          exit 1
+      - name: Run end-to-end acceptance
+        run: npm run e2e
+      - name: Verify camera auto-capture and page-turn deduplication
+        env:
+          CAMSCAN_CAMERA_FILE: /tmp/camscan-camera.y4m
+        run: node e2e/camera-auto-capture.mjs
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: camscan-e2e-evidence
+          path: |
+            e2e/generated/
+            /tmp/camscan.log
+            /tmp/camscan-camera-auto-capture.png
+          if-no-files-found: ignore
+          retention-days: 7

@@ -225,9 +225,10 @@ Recognition is **not** perfect, and the app is built assuming that:
   stacking). Run `node scripts/verify-pdf.ts` output through `pdftoppm` if you want to see it.
 - **Illustrations are not extracted automatically** — an illustration is represented as a
   placeholder unless a block is marked as one.
-- **Camera auto-capture is verified manually, not in CI.** Headless Chromium has no camera, so the
-  automatic suite covers the upload path (identical pipeline) plus the permission-denied and
-  device-unavailable paths. The stability gate, torch and rear-camera selection need a real phone.
+- **Camera auto-capture logic is covered in CI with a deterministic fake-camera video.** The test
+  verifies one capture for a held page and a second capture after page content changes while the
+  outer page boundary stays fixed. Real-device exposure changes, torch controls and rear-camera
+  selection still need a physical phone test.
 - **No background processing after the tab closes.** Jobs are persisted and resumed when the app is
   reopened; nothing runs while it is closed.
 - **IndexedDB is not archival storage.** Browsers evict it (especially on iOS). The app warns near

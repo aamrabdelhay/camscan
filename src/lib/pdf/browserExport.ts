@@ -27,6 +27,8 @@ export interface ExportPdfOptions {
   pages: PdfPageInput[];
   mode: 'replica' | 'photos';
   includeTitlePage?: boolean;
+  /** When true, append original page photographs after the searchable replica. */
+  appendOriginalPhotos?: boolean;
   onProgress?: (done: number, total: number, stage: string) => void;
   signal?: AbortSignal;
 }
@@ -73,8 +75,12 @@ async function fetchFont(file: string): Promise<ArrayBuffer> {
 /* ------------------------------------------------------------------ */
 
 export async function exportBookToPdf(options: ExportPdfOptions): Promise<ExportResult> {
-  const { book, pages, mode, includeTitlePage = true, onProgress, signal } = options;
+  const { book, pages, mode, includeTitlePage = true, appendOriginalPhotos = false, onProgress, signal } = options;
   if (!pages.length) throw new Error('No pages to export');
+  const extraPhotoPages = mode === 'replica' && appendOriginalPhotos
+    ? pages.filter((page) => Boolean(page.originalJpeg)).length
+    : 0;
+  const workPageCount = pages.length + extraPhotoPages;
   const started = performance.now();
 
   // Page size: use the first page's measured aspect ratio, at a fixed width so
@@ -139,7 +145,7 @@ export async function exportBookToPdf(options: ExportPdfOptions): Promise<Export
     }
   }
   if (!families.size) families.add('Amiri');
-  onProgress?.(0, pages.length, 'fonts');
+  onProgress?.(0, workPageCount, 'fonts');
   for (const id of families) {
     await ensureFont(id, 400, false);
     if (FONT_FILES[id]?.['700']) await ensureFont(id, 700, false);
@@ -203,17 +209,44 @@ export async function exportBookToPdf(options: ExportPdfOptions): Promise<Export
         hasTextLayer = true;
       }
     }
-    onProgress?.(i + 1, pages.length, mode === 'photos' ? 'photos' : 'replica');
+    onProgress?.(i + 1, workPageCount, mode === 'photos' ? 'photos' : 'replica');
 
     // Yield to the event loop so the UI paints between pages.
     if (i % 2 === 1) await new Promise((r) => setTimeout(r, 0));
   }
 
+  // Original photographs are a separate appendix, never a background image
+  // behind the searchable text replica. This preserves selectable text while
+  // giving archival users an exact visual reference for each exported page.
+  if (mode === 'replica' && appendOriginalPhotos) {
+    let photoIndex = 0;
+    for (const input of pages) {
+      if (!input.originalJpeg) continue;
+      if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
+      doc.addPage({ size: [pageWidth, pdfPageHeight], margin: 0 });
+      doc.rect(0, 0, pageWidth, pdfPageHeight).fill('#ffffff');
+      doc.image(Buffer.from(input.originalJpeg), 0, 0, {
+        fit: [pageWidth, pdfPageHeight],
+        align: 'center',
+        valign: 'center',
+      });
+      photoIndex++;
+      onProgress?.(pages.length + photoIndex, workPageCount, 'photos');
+      if (photoIndex % 2 === 0) await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+
   doc.end();
   const blob = await done;
   const durationMs = Math.round(performance.now() - started);
-  onProgress?.(pages.length, pages.length, 'complete');
-  return { blob, pageCount: pages.length + (includeTitlePage ? 1 : 0), bytes: blob.size, durationMs, hasTextLayer };
+  onProgress?.(workPageCount, workPageCount, 'complete');
+  return {
+    blob,
+    pageCount: pages.length + extraPhotoPages + (includeTitlePage ? 1 : 0),
+    bytes: blob.size,
+    durationMs,
+    hasTextLayer,
+  };
 }
 
 /* ------------------------------------------------------------------ */

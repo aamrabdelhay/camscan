@@ -235,8 +235,8 @@ export interface Book {
   doneCount: number;
   reviewCount: number;
   failedCount: number;
-  /** Small JPEG data URL / blob of the cover for fast grid rendering. */
-  coverThumb?: Blob;
+  /** Small JPEG data URL of the cover for fast library-grid rendering. */
+  coverThumb?: string;
 }
 
 /** A page as persisted. Images are separate columns so they can be skipped. */

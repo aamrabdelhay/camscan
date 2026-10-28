@@ -9,8 +9,8 @@
  *    CV worker so detection never blocks the UI thread
  *  - stability tracking + auto-capture decision (≈0.5 s of stable, sharp,
  *    well-exposed, fully-visible page)
- *  - de-duplication (cooldown + quad similarity) so a held page isn't captured
- *    twice and a page turn isn't captured mid-motion
+ *  - de-duplication (cooldown + visual frame signature) so a held page isn't
+ *    captured twice while a page turn at the same camera angle remains eligible
  *  - instant capture: grab the full-resolution frame, hand it to the caller,
  *    and return to ready immediately
  *
@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Point } from './types';
 import type { QualityMetrics } from './imageAnalysis';
+import { frameSignaturesClose, makeFrameSignature, normalizeQuad } from './cameraGeometry';
 
 export type CameraStatus =
   | 'idle'
@@ -116,7 +117,10 @@ export function useCamera(options: UseCameraOptions) {
   const stableSinceRef = useRef<number | null>(null);
   const lastQuadRef = useRef<Point[] | null>(null);
   const lastCaptureAtRef = useRef(0);
-  const lastCaptureQuadRef = useRef<Point[] | null>(null);
+  const lastCaptureSignatureRef = useRef<number[] | null>(null);
+  const lastFrameSignatureRef = useRef<number[] | null>(null);
+  const currentFrameSignatureRef = useRef<number[] | null>(null);
+  const detectionSizeRef = useRef({ width: 480, height: 270 });
   const capturingRef = useRef(false);
   const autoRef = useRef(autoCaptureEnabled);
   const onCaptureRef = useRef(onCapture);
@@ -146,24 +150,40 @@ export function useCamera(options: UseCameraOptions) {
       const data = event.data;
       detectBusyRef.current = false;
       if (!data.ok || !data.result) {
-        setState((s) => (s.hint === 'no-page' ? s : { ...s, quad: null, hint: 'no-page' }));
+        lastQuadRef.current = null;
+        lastFrameSignatureRef.current = null;
+        stableSinceRef.current = null;
+        setState((s) => (s.hint === 'no-page' && s.quad === null ? s : { ...s, quad: null, hint: 'no-page', stability: 0 }));
         return;
       }
       const { quad, quality, warnings } = data.result;
-      const points = quad.corners;
+      // imageAnalysis returns source-pixel coordinates; the UI/thresholds use 0..1.
+      const points = normalizeQuad(quad.corners, detectionSizeRef.current.width, detectionSizeRef.current.height);
+      const frameSignature = currentFrameSignatureRef.current;
       const now = performance.now();
 
       // ----- stability / de-dup logic -----
-      const similar = points && lastQuadRef.current && quadsClose(points, lastQuadRef.current, 0.03);
-      if (points && similar) {
+      // Page bounds can stay static while a leaf is turning. Require both the
+      // geometry and page appearance to be stable before the shutter can fire.
+      const stableAppearance = frameSignaturesClose(frameSignature, lastFrameSignatureRef.current, 0.075);
+      const similar = Boolean(
+        points
+        && lastQuadRef.current
+        && quadsClose(points, lastQuadRef.current, 0.03)
+        && stableAppearance,
+      );
+      if (similar) {
         if (stableSinceRef.current === null) stableSinceRef.current = now;
       } else {
         stableSinceRef.current = null;
       }
       lastQuadRef.current = points;
+      lastFrameSignatureRef.current = frameSignature ? [...frameSignature] : null;
 
       const sinceCapture = now - lastCaptureAtRef.current;
-      const samePageAsLast = points && lastCaptureQuadRef.current && quadsClose(points, lastCaptureQuadRef.current, 0.05);
+      // A fixed camera often sees the next leaf at the exact same geometry.
+      // Compare page appearance instead of suppressing by quadrilateral alone.
+      const samePageAsLast = frameSignaturesClose(frameSignature, lastCaptureSignatureRef.current, 0.04);
 
       let hint: CaptureHint = 'none';
       const severity = {
@@ -183,7 +203,7 @@ export function useCamera(options: UseCameraOptions) {
       else if (severity['move-closer']) hint = 'move-closer';
       else if (warnings.length) hint = 'hold-steady';
 
-      const stableFor = stableSinceRef.current ? now - stableSinceRef.current : 0;
+      const stableFor = stableSinceRef.current !== null ? now - stableSinceRef.current : 0;
       const stability = Math.max(0, Math.min(1, stableFor / stableMs));
 
       setState((s) => ({
@@ -238,6 +258,8 @@ export function useCamera(options: UseCameraOptions) {
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
+    detectionSizeRef.current = { width: w, height: h };
+    currentFrameSignatureRef.current = makeFrameSignature(imageData.data, w, h);
 
     const worker = ensureWorker();
     detectBusyRef.current = true;
@@ -253,6 +275,11 @@ export function useCamera(options: UseCameraOptions) {
     const video = videoRef.current;
     if (!video || video.readyState < 2 || capturingRef.current) return null;
     capturingRef.current = true;
+    // Snapshot the signature before async JPEG encoding; the preview loop may
+    // observe another frame while canvas.toBlob() is still in flight.
+    const captureSignature = currentFrameSignatureRef.current
+      ? [...currentFrameSignatureRef.current]
+      : null;
     const started = performance.now();
     try {
       // IMPORTANT: capture at full sensor resolution, not the preview size.
@@ -280,7 +307,7 @@ export function useCamera(options: UseCameraOptions) {
       };
 
       lastCaptureAtRef.current = performance.now();
-      lastCaptureQuadRef.current = lastQuadRef.current;
+      lastCaptureSignatureRef.current = captureSignature;
       stableSinceRef.current = null;
 
       // Fire-and-forget: the UI returns to ready immediately.

@@ -34,6 +34,9 @@ export function CameraView({
   const [localAuto, setLocalAuto] = useState(autoCapture);
   const [lastCaptureMs, setLastCaptureMs] = useState<number | null>(null);
   const [captureCount, setCaptureCount] = useState(0);
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
+
+
 
   // Wrap the parent callback: visual confirmation + never block on it.
   const handleCapture = useCallback((frame: CapturedFrame) => {
@@ -59,6 +62,31 @@ export function CameraView({
     jpegQuality: 0.92,
   });
   captureHookRef.current = null;
+
+  // Keep the overlay in sync with actual decoded media dimensions. Some
+  // browsers dispatch loadedmetadata before React wires the event handler,
+  // so also synchronise on camera status/size changes and subscribe natively.
+  useEffect(() => {
+    const video = camera.videoRef.current;
+    if (!video) return;
+    const syncAspect = () => {
+      const { videoWidth, videoHeight } = video;
+      if (videoWidth <= 0 || videoHeight <= 0) return;
+      const nextAspect = videoWidth / videoHeight;
+      setVideoAspect((current) => Math.abs(current - nextAspect) < 0.001 ? current : nextAspect);
+    };
+    syncAspect();
+    video.addEventListener('loadedmetadata', syncAspect);
+    video.addEventListener('loadeddata', syncAspect);
+    video.addEventListener('canplay', syncAspect);
+    video.addEventListener('resize', syncAspect);
+    return () => {
+      video.removeEventListener('loadedmetadata', syncAspect);
+      video.removeEventListener('loadeddata', syncAspect);
+      video.removeEventListener('canplay', syncAspect);
+      video.removeEventListener('resize', syncAspect);
+    };
+  }, [camera.state.status, camera.state.videoSize.width, camera.state.videoSize.height]);
 
   /**
    * Start the stream as soon as this view is mounted.
@@ -86,6 +114,9 @@ export function CameraView({
   const showHint = Boolean(hintText) && camera.isLive && !paused;
   /** Camera failed to start: show a full explanation instead of a blank preview. */
   const cameraBlocked = ['denied', 'unavailable', 'insecure', 'error'].includes(camera.state.status);
+  // Read dimensions from the media element's own metadata/resize events.
+  // The hook's React state can lag behind the first decoded frame on some browsers.
+  const overlayViewBoxHeight = 100 / videoAspect;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -98,11 +129,16 @@ export function CameraView({
       />
 
       {/* -------- page quad overlay -------- */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <svg
+        data-testid="camera-quad-overlay"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox={`0 0 100 ${overlayViewBoxHeight}`}
+        aria-hidden="true"
+      >
         {camera.state.quad ? (
           <>
             <polygon
-              points={camera.state.quad.points.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')}
+              points={camera.state.quad.points.map((p) => `${p.x * 100},${p.y * overlayViewBoxHeight}`).join(' ')}
               fill="rgba(47,141,124,0.12)"
               stroke="rgba(134,201,187,0.95)"
               strokeWidth="0.5"
@@ -110,7 +146,7 @@ export function CameraView({
               strokeDasharray={camera.state.hint === 'none' ? undefined : '1.4 0.8'}
             />
             {camera.state.quad.points.map((p, i) => (
-              <circle key={i} cx={p.x * 100} cy={p.y * 100} r="0.9" fill="rgba(134,201,187,0.95)" />
+              <circle key={i} cx={p.x * 100} cy={p.y * overlayViewBoxHeight} r="0.9" fill="rgba(134,201,187,0.95)" />
             ))}
           </>
         ) : null}
