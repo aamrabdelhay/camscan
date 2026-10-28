@@ -183,7 +183,7 @@ export function useCamera(options: UseCameraOptions) {
       const sinceCapture = now - lastCaptureAtRef.current;
       // A fixed camera often sees the next leaf at the exact same geometry.
       // Compare page appearance instead of suppressing by quadrilateral alone.
-      const samePageAsLast = frameSignaturesClose(frameSignature, lastCaptureSignatureRef.current);
+      const samePageAsLast = frameSignaturesClose(frameSignature, lastCaptureSignatureRef.current, 0.04);
 
       let hint: CaptureHint = 'none';
       const severity = {

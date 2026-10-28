@@ -692,7 +692,14 @@ function AddBookDialog({
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t(lang, 'author')} value={author} onChange={(e) => setAuthor(e.target.value)} />
-          <Select label={t(lang, 'primaryLanguage')} value={language} onChange={(e) => setLanguage(e.target.value as BookLanguage)}>
+          <Select label={t(lang, 'primaryLanguage')} value={language} onChange={(e) => {
+            const nextLanguage = e.target.value as BookLanguage;
+            setLanguage(nextLanguage);
+            setExtra((current) => ({
+              ...current,
+              additionalLanguages: current.additionalLanguages.filter((code) => code !== nextLanguage),
+            }));
+          }}>
             {LANGUAGES.map((l) => (
               <option key={l.code} value={l.code}>{lang === 'ar' ? l.labelAr : l.label}</option>
             ))}
@@ -818,6 +825,7 @@ function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose
                   title: title.trim() || book.title,
                   author: author.trim(),
                   ...details,
+                  additionalLanguages: details.additionalLanguages.filter((code) => code !== details.language),
                 });
                 push(lang === 'ar' ? 'تم حفظ بيانات الكتاب' : 'Book details saved', 'success');
                 onSaved();
@@ -837,7 +845,15 @@ function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose
         <Field label={t(lang, 'title')} value={title} onChange={(e) => setTitle(e.target.value)} required />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t(lang, 'author')} value={author} onChange={(e) => setAuthor(e.target.value)} />
-          <Select label={t(lang, 'primaryLanguage')} value={details.language} onChange={(e) => updateDetail('language', e.target.value as BookLanguage)}>
+          <Select
+            label={t(lang, 'primaryLanguage')}
+            value={details.language}
+            onChange={(e) => {
+              const nextLanguage = e.target.value as BookLanguage;
+              updateDetail('language', nextLanguage);
+              updateDetail('additionalLanguages', details.additionalLanguages.filter((code) => code !== nextLanguage));
+            }}
+          >
             {LANGUAGES.map((item) => (
               <option key={item.code} value={item.code}>{lang === 'ar' ? item.labelAr : item.label}</option>
             ))}

@@ -43,6 +43,20 @@ describe('camera geometry and frame identity', () => {
     expect(frameSignaturesClose(signatureA, signatureB)).toBe(false);
   });
 
+  it('distinguishes new text on a page with the same outer boundary and line positions', () => {
+    const width = 480;
+    const height = 360;
+    const pageA = makeLayoutPage(width, height, false);
+    const pageB = makeLayoutPage(width, height, true);
+    const signatureA = makeFrameSignature(pageA, width, height);
+    const signatureB = makeFrameSignature(pageB, width, height);
+
+    // Production duplicate detection uses a stricter threshold than stability:
+    // different pages can share the same page outline and baseline positions.
+    expect(frameSignaturesClose(signatureA, signatureA, 0.04)).toBe(true);
+    expect(frameSignaturesClose(signatureA, signatureB, 0.04)).toBe(false);
+  });
+
   it('does not treat missing signatures as equal', () => {
     expect(frameSignaturesClose(null, null)).toBe(false);
     expect(frameSignaturesClose([0.1, 0.2], [0.1])).toBe(false);
@@ -80,4 +94,57 @@ function shiftFrame(source: Uint8ClampedArray, width: number, height: number, sh
     }
   }
   return shifted;
+}
+
+function makeLayoutPage(width: number, height: number, alternate: boolean): Uint8ClampedArray {
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const insidePaper = x >= width * 0.03 && x < width * 0.97 && y >= height * 0.04 && y < height * 0.96;
+      const value = insidePaper ? 245 : 69;
+      const offset = (y * width + x) * 4;
+      pixels[offset] = value;
+      pixels[offset + 1] = value;
+      pixels[offset + 2] = value;
+      pixels[offset + 3] = 255;
+    }
+  }
+
+  const common = [
+    { x: 0.13, y: 0.23, w: 0.73, h: 0.012 },
+    { x: 0.15, y: 0.40, w: 0.69, h: 0.012 },
+    { x: 0.16, y: 0.58, w: 0.67, h: 0.012 },
+    { x: 0.13, y: 0.76, w: 0.73, h: 0.012 },
+  ];
+  const distinct = alternate
+    ? [
+        { x: 0.10, y: 0.15, w: 0.52, h: 0.015 },
+        { x: 0.09, y: 0.31, w: 0.35, h: 0.012 },
+        { x: 0.10, y: 0.49, w: 0.48, h: 0.012 },
+        { x: 0.10, y: 0.67, w: 0.40, h: 0.012 },
+        { x: 0.09, y: 0.85, w: 0.55, h: 0.012 },
+      ]
+    : [
+        { x: 0.10, y: 0.15, w: 0.80, h: 0.015 },
+        { x: 0.09, y: 0.31, w: 0.82, h: 0.012 },
+        { x: 0.10, y: 0.49, w: 0.77, h: 0.012 },
+        { x: 0.10, y: 0.67, w: 0.80, h: 0.012 },
+        { x: 0.09, y: 0.85, w: 0.82, h: 0.012 },
+      ];
+
+  for (const line of [...distinct, ...common]) {
+    const x0 = Math.floor(line.x * width);
+    const y0 = Math.floor(line.y * height);
+    const x1 = Math.min(width, Math.floor((line.x + line.w) * width));
+    const y1 = Math.min(height, Math.max(y0 + 1, Math.floor((line.y + line.h) * height)));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const offset = (y * width + x) * 4;
+        pixels[offset] = 37;
+        pixels[offset + 1] = 37;
+        pixels[offset + 2] = 37;
+      }
+    }
+  }
+  return pixels;
 }
