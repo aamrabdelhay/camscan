@@ -84,16 +84,30 @@ async function main() {
       return Boolean(video && video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2);
     }, null, { timeout: 12000 });
 
-    const overlayMatchesVideo = await page.evaluate(() => {
+    const measureOverlayAspect = () => page.evaluate(() => {
       const video = document.querySelector('video');
       const overlay = document.querySelector('[data-testid="camera-quad-overlay"]');
       const values = overlay?.getAttribute('viewBox')?.trim().split(/\\s+/).map(Number);
-      if (!video || !overlay || !values || values.length !== 4 || video.videoHeight === 0) return false;
-      const overlayAspect = values[2] / values[3];
-      const videoAspect = video.videoWidth / video.videoHeight;
-      return Math.abs(overlayAspect - videoAspect) < 0.01;
+      const videoAspect = video && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 0;
+      const overlayAspect = values && values.length === 4 && values[3] > 0 ? values[2] / values[3] : 0;
+      return {
+        readyState: video?.readyState ?? -1,
+        videoWidth: video?.videoWidth ?? 0,
+        videoHeight: video?.videoHeight ?? 0,
+        videoAspect,
+        viewBox: overlay?.getAttribute('viewBox') ?? null,
+        overlayAspect,
+        matches: videoAspect > 0 && overlayAspect > 0 && Math.abs(overlayAspect - videoAspect) < 0.01,
+      };
     });
-    check('page guide overlay matches the camera aspect ratio', overlayMatchesVideo);
+    const overlayMatchesVideo = await page.waitForFunction(() => {
+      const video = document.querySelector('video');
+      const overlay = document.querySelector('[data-testid="camera-quad-overlay"]');
+      const values = overlay?.getAttribute('viewBox')?.trim().split(/\\s+/).map(Number);
+      if (!video || !overlay || !values || values.length !== 4 || video.videoHeight === 0 || values[3] <= 0) return false;
+      return Math.abs((values[2] / values[3]) - (video.videoWidth / video.videoHeight)) < 0.01;
+    }, null, { timeout: 5000 }).then(() => true).catch(() => false);
+    check('page guide overlay matches the camera aspect ratio', overlayMatchesVideo, JSON.stringify(await measureOverlayAspect()));
 
     let first;
     try {
