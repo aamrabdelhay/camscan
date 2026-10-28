@@ -5,7 +5,7 @@
  * auto/manual capture. Deliberately minimal chrome with very large touch
  * targets — this screen is used one-handed next to an open book.
  */
-import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCamera, type CameraState, type CapturedFrame, type CaptureHint } from '@/lib/useCamera';
 import { Button } from '@/components/ui';
 import type { TranslationKey } from '@/lib/i18n';
@@ -36,12 +36,7 @@ export function CameraView({
   const [captureCount, setCaptureCount] = useState(0);
   const [videoAspect, setVideoAspect] = useState(16 / 9);
 
-  const updateVideoAspect = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
-    const { videoWidth, videoHeight } = event.currentTarget;
-    if (videoWidth <= 0 || videoHeight <= 0) return;
-    const nextAspect = videoWidth / videoHeight;
-    setVideoAspect((current) => Math.abs(current - nextAspect) < 0.001 ? current : nextAspect);
-  }, []);
+
 
   // Wrap the parent callback: visual confirmation + never block on it.
   const handleCapture = useCallback((frame: CapturedFrame) => {
@@ -67,6 +62,31 @@ export function CameraView({
     jpegQuality: 0.92,
   });
   captureHookRef.current = null;
+
+  // Keep the overlay in sync with actual decoded media dimensions. Some
+  // browsers dispatch loadedmetadata before React wires the event handler,
+  // so also synchronise on camera status/size changes and subscribe natively.
+  useEffect(() => {
+    const video = camera.videoRef.current;
+    if (!video) return;
+    const syncAspect = () => {
+      const { videoWidth, videoHeight } = video;
+      if (videoWidth <= 0 || videoHeight <= 0) return;
+      const nextAspect = videoWidth / videoHeight;
+      setVideoAspect((current) => Math.abs(current - nextAspect) < 0.001 ? current : nextAspect);
+    };
+    syncAspect();
+    video.addEventListener('loadedmetadata', syncAspect);
+    video.addEventListener('loadeddata', syncAspect);
+    video.addEventListener('canplay', syncAspect);
+    video.addEventListener('resize', syncAspect);
+    return () => {
+      video.removeEventListener('loadedmetadata', syncAspect);
+      video.removeEventListener('loadeddata', syncAspect);
+      video.removeEventListener('canplay', syncAspect);
+      video.removeEventListener('resize', syncAspect);
+    };
+  }, [camera.state.status, camera.state.videoSize.width, camera.state.videoSize.height]);
 
   /**
    * Start the stream as soon as this view is mounted.
@@ -105,8 +125,6 @@ export function CameraView({
         className="h-full w-full object-contain"
         playsInline
         muted
-        onLoadedMetadata={updateVideoAspect}
-        onResize={updateVideoAspect}
         aria-label={lang === 'ar' ? 'معاينة الكاميرا المباشرة' : 'Live camera preview'}
       />
 
