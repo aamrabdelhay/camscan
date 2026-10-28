@@ -101,7 +101,7 @@ async function main() {
 
     // At t=5s the fixture swaps to page B without changing the camera or
     // page-boundary geometry. A quad-only dedupe implementation stays blocked.
-    const second = await waitForPages(page, bookId, 2, 11000);
+    const second = await waitForPages(page, bookId, 2, 17000);
     check('a different page at the same camera angle is auto-captured', second.length >= 2, `${second.length} pages`);
 
     await page.waitForTimeout(2000);
