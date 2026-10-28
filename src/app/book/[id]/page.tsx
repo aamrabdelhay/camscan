@@ -661,7 +661,7 @@ export default function ReaderPage({ params, searchParams }: Props) {
         bookTitle={book.title}
         pageNumber={index + 1}
         pageText={model ? modelPlainText(model) : current?.plainText ?? ''}
-        bookText={pages.map((p, i) => `--- ${lang === 'ar' ? 'صفحة' : 'Page'} ${i + 1} ---\\n${i === index && model ? modelPlainText(model) : p.plainText ?? ''}`).filter((text) => text.trim()).join('\\n\\n')}
+        bookText={pages.map((p, i) => `--- ${lang === 'ar' ? 'صفحة' : 'Page'} ${i + 1} ---\n${i === index && model ? modelPlainText(model) : p.plainText ?? ''}`).filter((text) => text.trim()).join('\n\n')}
       />
 
       <Modal
