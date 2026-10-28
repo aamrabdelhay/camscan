@@ -295,8 +295,12 @@ export function createLocalRepository(): Repository {
         const book = await d.books.get(input.bookId);
         if (book) {
           const patch: Partial<Book> = { updatedAt: now };
-          // First capture becomes the cover automatically.
-          if (!book.coverPageId) patch.coverPageId = id;
+          // First capture becomes the cover automatically. Use the existing
+          // thumb when available; camera captures attach it asynchronously.
+          if (!book.coverPageId) {
+            patch.coverPageId = id;
+            if (thumb) patch.coverThumb = thumb;
+          }
           await d.books.update(input.bookId, patch);
         }
       });
@@ -307,7 +311,7 @@ export function createLocalRepository(): Repository {
       const { originalImage, processedImage, ...rest } = patch as Partial<PageRecord>;
       void originalImage;
       const d = db();
-      await d.transaction('rw', [d.pages, d.blobs], async () => {
+      await d.transaction('rw', [d.pages, d.blobs, d.books], async () => {
         const row = await d.pages.get(pageId);
         if (!row) return;
         const update: Partial<PageRow> = { ...(rest as Partial<PageRow>), updatedAt: Date.now() };
@@ -321,6 +325,14 @@ export function createLocalRepository(): Repository {
           update.searchText = normalizeSearchText(update.plainText);
         }
         await d.pages.update(pageId, update);
+        // Keep the book-card cover in sync when its first page's thumbnail is
+        // generated asynchronously after an immediate camera capture.
+        if (typeof patch.thumb === 'string') {
+          const book = await d.books.get(row.bookId);
+          if (book?.coverPageId === pageId) {
+            await d.books.update(book.id, { coverThumb: patch.thumb });
+          }
+        }
       });
     },
 
@@ -371,7 +383,7 @@ export function createLocalRepository(): Repository {
         const book = await d.books.get(row.bookId);
         if (book?.coverPageId === pageId) {
           const next = await d.pages.where('bookId').equals(row.bookId).sortBy('order');
-          await d.books.update(book.id, { coverPageId: next[0]?.id, coverThumb: undefined });
+          await d.books.update(book.id, { coverPageId: next[0]?.id, coverThumb: next[0]?.thumb });
         }
       });
     },

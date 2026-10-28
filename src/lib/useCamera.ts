@@ -275,6 +275,11 @@ export function useCamera(options: UseCameraOptions) {
     const video = videoRef.current;
     if (!video || video.readyState < 2 || capturingRef.current) return null;
     capturingRef.current = true;
+    // Snapshot the signature before async JPEG encoding; the preview loop may
+    // observe another frame while canvas.toBlob() is still in flight.
+    const captureSignature = currentFrameSignatureRef.current
+      ? [...currentFrameSignatureRef.current]
+      : null;
     const started = performance.now();
     try {
       // IMPORTANT: capture at full sensor resolution, not the preview size.
@@ -302,7 +307,7 @@ export function useCamera(options: UseCameraOptions) {
       };
 
       lastCaptureAtRef.current = performance.now();
-      lastCaptureSignatureRef.current = currentFrameSignatureRef.current ? [...currentFrameSignatureRef.current] : null;
+      lastCaptureSignatureRef.current = captureSignature;
       stableSinceRef.current = null;
 
       // Fire-and-forget: the UI returns to ready immediately.

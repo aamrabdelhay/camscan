@@ -178,6 +178,10 @@ export async function importLibraryFromZip(
       ...book,
       id: targetId,
       title: existing ? `${book.title} (restored)` : book.title,
+      // Page IDs are regenerated during restore, so rebuild the cover binding
+      // from the first restored page rather than retaining a stale page ID.
+      coverPageId: undefined,
+      coverThumb: undefined,
     });
     summary.books++;
 

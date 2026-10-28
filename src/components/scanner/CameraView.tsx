@@ -86,6 +86,10 @@ export function CameraView({
   const showHint = Boolean(hintText) && camera.isLive && !paused;
   /** Camera failed to start: show a full explanation instead of a blank preview. */
   const cameraBlocked = ['denied', 'unavailable', 'insecure', 'error'].includes(camera.state.status);
+  const videoWidth = camera.state.videoSize.width;
+  const videoHeight = camera.state.videoSize.height;
+  const videoAspect = videoWidth > 0 && videoHeight > 0 ? videoWidth / videoHeight : 16 / 9;
+  const overlayViewBoxHeight = 100 / videoAspect;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -98,11 +102,16 @@ export function CameraView({
       />
 
       {/* -------- page quad overlay -------- */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <svg
+        data-testid="camera-quad-overlay"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        viewBox={`0 0 100 ${overlayViewBoxHeight}`}
+        aria-hidden="true"
+      >
         {camera.state.quad ? (
           <>
             <polygon
-              points={camera.state.quad.points.map((p) => `${p.x * 100},${p.y * 100}`).join(' ')}
+              points={camera.state.quad.points.map((p) => `${p.x * 100},${p.y * overlayViewBoxHeight}`).join(' ')}
               fill="rgba(47,141,124,0.12)"
               stroke="rgba(134,201,187,0.95)"
               strokeWidth="0.5"
@@ -110,7 +119,7 @@ export function CameraView({
               strokeDasharray={camera.state.hint === 'none' ? undefined : '1.4 0.8'}
             />
             {camera.state.quad.points.map((p, i) => (
-              <circle key={i} cx={p.x * 100} cy={p.y * 100} r="0.9" fill="rgba(134,201,187,0.95)" />
+              <circle key={i} cx={p.x * 100} cy={p.y * overlayViewBoxHeight} r="0.9" fill="rgba(134,201,187,0.95)" />
             ))}
           </>
         ) : null}

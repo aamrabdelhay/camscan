@@ -91,6 +91,7 @@ async function readDb(page, bookId) {
     pages.sort((a, b) => a.order - b.order);
     return {
       books: books.length,
+      coverThumbnails: books.filter((book) => typeof book.coverThumb === 'string' && book.coverThumb.startsWith('data:image/')).length,
       pages: pages.map((p) => ({
         id: p.id, order: p.order, status: p.status, conf: Math.round(p.avgConfidence || 0),
         blocks: p.pageModel?.blocks?.length ?? 0,
@@ -178,6 +179,7 @@ async function main() {
     return snap.pages.length >= 2 ? snap : null;
   }, 45000);
   check('two pages persisted immediately', stored.pages.length === 2, JSON.stringify(stored.pages.map((p) => p.order)));
+  check('first page produces a library cover thumbnail', stored.coverThumbnails >= 1, `${stored.coverThumbnails} cover thumbnail(s)`);
   check('original captures stored as blobs', stored.blobSizes.filter((s) => s > 50_000).length >= 2, `${stored.blobSizes.join(', ')} bytes`);
   check('page order is 0,1 by capture sequence', JSON.stringify(stored.pages.map((p) => p.order)) === '[0,1]');
 
@@ -291,6 +293,28 @@ async function main() {
     imageCount = Number(execFileSync('pdfimages', ['-list', pdfPath], { encoding: 'utf8' }).trim().split('\n').length - 2);
   } catch { imageCount = 0; }
   check('replica PDF contains no page photographs', imageCount <= 1, `${imageCount} embedded image(s)`);
+
+  /* ---------------------------------------------------------------- */
+  console.log('\n── 6b. Optional searchable PDF + original-photo appendix ──');
+  await page.goto(BASE, { waitUntil: 'networkidle' });
+  const bookCard = page.locator('ul.grid > li').filter({ hasText: AR_SAMPLE.title }).first();
+  await bookCard.getByRole('button', { name: /الإعدادات|settings/i }).click();
+  const appendixDownloadPromise = page.waitForEvent('download', { timeout: 180000 });
+  await bookCard.getByRole('button', { name: /تصدير PDF مع الصور الأصلية|Export PDF with original photos/i }).click();
+  const appendixDownload = await appendixDownloadPromise;
+  const appendixPath = path.join(outDir, 'camscan-photo-appendix.pdf');
+  await appendixDownload.saveAs(appendixPath);
+  const appendixInfo = execFileSync('pdfinfo', [appendixPath], { encoding: 'utf8' });
+  const appendixPageCount = Number(appendixInfo.match(/Pages:\\s+(\\d+)/)?.[1] ?? 0);
+  const replicaPageCount = pageCount - 1;
+  check('photo appendix adds one original photograph per replica page', appendixPageCount === 1 + replicaPageCount * 2, `${appendixPageCount} pages`);
+  const appendixText = execFileSync('pdftotext', [appendixPath, '-'], { encoding: 'utf8' });
+  check('photo appendix export keeps selectable Arabic text', appendixText.includes('نص صحيح للاختبار العربي'));
+  let appendixImageCount = 0;
+  try {
+    appendixImageCount = Number(execFileSync('pdfimages', ['-list', appendixPath], { encoding: 'utf8' }).trim().split('\\n').length - 2);
+  } catch { appendixImageCount = 0; }
+  check('photo appendix contains embedded original page photographs', appendixImageCount >= replicaPageCount, `${appendixImageCount} embedded image(s)`);
 
   /* ---------------------------------------------------------------- */
   console.log('\n── 7. Backup → wipe → restore ──');

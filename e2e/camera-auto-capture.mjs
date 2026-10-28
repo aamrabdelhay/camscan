@@ -84,6 +84,17 @@ async function main() {
       return Boolean(video && video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2);
     }, null, { timeout: 12000 });
 
+    const overlayMatchesVideo = await page.evaluate(() => {
+      const video = document.querySelector('video');
+      const overlay = document.querySelector('[data-testid="camera-quad-overlay"]');
+      const values = overlay?.getAttribute('viewBox')?.trim().split(/\\s+/).map(Number);
+      if (!video || !overlay || !values || values.length !== 4 || video.videoHeight === 0) return false;
+      const overlayAspect = values[2] / values[3];
+      const videoAspect = video.videoWidth / video.videoHeight;
+      return Math.abs(overlayAspect - videoAspect) < 0.01;
+    });
+    check('page guide overlay matches the camera aspect ratio', overlayMatchesVideo);
+
     let first;
     try {
       first = await waitForPages(page, bookId, 1, 15000);
