@@ -3,7 +3,7 @@
  * contract used by external tools. This is a serialization layer only: it
  * never rewrites recognised characters or invents text for missing regions.
  */
-import type { PageBlock, PageModel, TextDirection } from '../types';
+import type { PageBlock, PageModel } from '../types';
 
 export type OcrConfidence = 'high' | 'medium' | 'low';
 export type StructuredBlockType =
@@ -186,11 +186,13 @@ function mixedScriptSpans(
 }
 
 function pageLanguages(model: PageModel, blocks: StructuredOcrDocument['blocks']): string[] {
-  const input = [
-    ...model.provenance.languages,
-    ...blocks.map((block) => block.lang),
-  ];
-  const output = [...new Set(input.map((code) => languageCode(code)).filter((code) => code !== 'und'))];
+  // Report scripts/languages actually represented in the recognized text,
+  // not every language pack that happened to be enabled for the OCR pass.
+  const detected = blocks.flatMap((block) => [
+    block.lang,
+    ...block.lines.flatMap((line) => line.spans?.map((span) => span.lang) ?? []),
+  ]);
+  const output = [...new Set(detected.map((code) => languageCode(code)).filter((code) => code !== 'und'))];
   if (output.length) return output;
   const fallback = languageCode(model.language);
   return fallback === 'und' ? [] : [fallback];
