@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const apiKey = typeof record?.apiKey === 'string' ? record.apiKey.trim() : '';
   const prompt = typeof record?.prompt === 'string' ? record.prompt.trim() : '';
 
-  if (!apiKey || apiKey.length > MAX_API_KEY_CHARS) {
+  if (!/^[A-Za-z0-9_-]{20,512}$/.test(apiKey) || apiKey.length > MAX_API_KEY_CHARS) {
     return jsonError('Add a valid OpenRouter API key to continue.', 400);
   }
   if (!prompt || prompt.length > MAX_PROMPT_CHARS) {
@@ -112,7 +112,19 @@ export async function POST(request: Request) {
   const choices = Array.isArray(root?.choices) ? root.choices : [];
   const firstChoice = getRecord(choices[0]);
   const message = getRecord(firstChoice?.message);
-  const text = typeof message?.content === 'string' ? message.content.trim() : '';
+  const content = message?.content;
+  const text = typeof content === 'string'
+    ? content.trim()
+    : Array.isArray(content)
+      ? content
+          .map((part) => {
+            const item = getRecord(part);
+            return typeof item?.text === 'string' ? item.text : '';
+          })
+          .filter(Boolean)
+          .join('\\n')
+          .trim()
+      : '';
 
   if (!text) {
     return jsonError('The free AI provider returned an empty response. Try again later.', 502);
