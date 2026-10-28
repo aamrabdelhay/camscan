@@ -8,7 +8,7 @@ rebuilds the page as **real HTML text** — not a picture of a page. Every page 
 typography, sampled paper colour and ink colour, and can be edited, searched and exported to a PDF
 with a genuine text layer.
 
-By default, nothing is uploaded: camera frames, recognised text and reconstructed pages stay in IndexedDB on the device. The optional AI assistant is separate: only when a user explicitly agrees and submits a request, the selected OCR text (never page images) is sent to Puter.js for analysis. Its user-pays model may require sign-in and is subject to the user's quota and terms; free use is not unlimited or guaranteed forever.
+By default, nothing is uploaded: camera frames, recognised text and reconstructed pages stay in IndexedDB on the device. The optional AI assistant is separate: only after explicit consent and submission, the selected OCR text (never page images) is sent to OpenRouter through a request-only CamScan endpoint. The endpoint pins every request to OpenRouter's $0 `openrouter/free` router and never supplies a paid fallback. The user enters their own free OpenRouter API key; the app does not persist it.
 
 ---
 
@@ -95,10 +95,11 @@ block text plus font/type/alignment/size/colour.
 
 From the book reader, users can ask the assistant to summarise, explain, translate, review likely OCR errors, or answer a question about recognised text. This is separate from transcription: the assistant never silently corrects, overwrites or reprocesses saved OCR text.
 
-- Local Tesseract remains the default OCR engine and works without an AI API key.
-- The Puter.js SDK is loaded only when the user checks the consent box and explicitly submits an AI request.
+- Local Tesseract remains the default OCR engine and works without any AI API key.
+- The optional AI assistant requires a user's own OpenRouter API key from [OpenRouter API Keys](https://openrouter.ai/settings/keys); it is not stored in localStorage or a database and is cleared from the dialog when closed.
 - By default, only the current page is sent; the user may choose book text, capped at 12,000 characters. Page images are never sent to the assistant.
-- Puter requires no project API key, but its user-pays model may require the end user to sign in and is subject to account quotas and provider terms. This does not guarantee unlimited free use.
+- The server-side endpoint hard-codes the zero-priced `openrouter/free` router, sends no paid-model fallback list, and never accepts a model ID from the browser. A missing key, exhausted free quota, or unavailable free model returns an error instead of trying a paid service.
+- OpenRouter's free router is rate-limited and model availability can vary; see the [official free-model docs](https://openrouter.ai/collections/free-models).
 - Do not send confidential, privileged, or restricted text unless you are authorised to share it with the provider.
 
 ### Editing and review
