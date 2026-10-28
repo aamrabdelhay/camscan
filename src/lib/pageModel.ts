@@ -723,7 +723,11 @@ export function buildPageModel(lines: OcrObservation[], opts: BuildOptions): Pag
         : 1.25,
       lines: [...mb.lines]
         .sort((a, b) => a.bbox.y - b.bbox.y || b.bbox.x - a.bbox.x)
-        .map((l) => ({ text: l.text, bbox: l.bbox, confidence: l.confidence })),
+        .map((l) => ({
+          text: l.text,
+          bbox: l.bbox,
+          confidence: l.wordConfidences?.length ? Math.min(l.confidence, ...l.wordConfidences) : l.confidence,
+        })),
       text,
       confidence,
       uncertain: confidence < blockReviewThreshold || lowWords || overlapsArt,
