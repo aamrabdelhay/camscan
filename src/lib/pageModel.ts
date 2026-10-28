@@ -625,7 +625,7 @@ export function buildPageModel(lines: OcrObservation[], opts: BuildOptions): Pag
     .filter((l) => l.text.trim().length > 0 && l.bbox.w > 0.001 && l.bbox.h > 0.001)
     .map((l) => ({
       ...l,
-      text: l.text.replace(/\s+/g, ' ').trim(),
+      text: l.text.trim(),
       bbox: {
         x: clamp01(l.bbox.x),
         y: clamp01(l.bbox.y),
