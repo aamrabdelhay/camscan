@@ -387,7 +387,7 @@ export default function HomePage() {
                     lang={lang}
                     exportProgress={exportProgress?.bookId === book.id ? exportProgress.value : null}
                     busy={busy === book.id}
-                    onExport={() => void handleExport(book)}
+                    onExport={(appendOriginalPhotos) => void handleExport(book, appendOriginalPhotos)}
                     onEdit={() => setEditing(book)}
                     onDelete={() => setDeleting(book)}
                   />
