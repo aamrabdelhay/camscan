@@ -5,7 +5,7 @@
  * auto/manual capture. Deliberately minimal chrome with very large touch
  * targets — this screen is used one-handed next to an open book.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useCamera, type CameraState, type CapturedFrame, type CaptureHint } from '@/lib/useCamera';
 import { Button } from '@/components/ui';
 import type { TranslationKey } from '@/lib/i18n';
@@ -34,6 +34,14 @@ export function CameraView({
   const [localAuto, setLocalAuto] = useState(autoCapture);
   const [lastCaptureMs, setLastCaptureMs] = useState<number | null>(null);
   const [captureCount, setCaptureCount] = useState(0);
+  const [videoAspect, setVideoAspect] = useState(16 / 9);
+
+  const updateVideoAspect = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
+    const { videoWidth, videoHeight } = event.currentTarget;
+    if (videoWidth <= 0 || videoHeight <= 0) return;
+    const nextAspect = videoWidth / videoHeight;
+    setVideoAspect((current) => Math.abs(current - nextAspect) < 0.001 ? current : nextAspect);
+  }, []);
 
   // Wrap the parent callback: visual confirmation + never block on it.
   const handleCapture = useCallback((frame: CapturedFrame) => {
@@ -86,9 +94,8 @@ export function CameraView({
   const showHint = Boolean(hintText) && camera.isLive && !paused;
   /** Camera failed to start: show a full explanation instead of a blank preview. */
   const cameraBlocked = ['denied', 'unavailable', 'insecure', 'error'].includes(camera.state.status);
-  const videoWidth = camera.state.videoSize.width;
-  const videoHeight = camera.state.videoSize.height;
-  const videoAspect = videoWidth > 0 && videoHeight > 0 ? videoWidth / videoHeight : 16 / 9;
+  // Read dimensions from the media element's own metadata/resize events.
+  // The hook's React state can lag behind the first decoded frame on some browsers.
   const overlayViewBoxHeight = 100 / videoAspect;
 
   return (
@@ -98,6 +105,8 @@ export function CameraView({
         className="h-full w-full object-contain"
         playsInline
         muted
+        onLoadedMetadata={updateVideoAspect}
+        onResize={updateVideoAspect}
         aria-label={lang === 'ar' ? 'معاينة الكاميرا المباشرة' : 'Live camera preview'}
       />
 
