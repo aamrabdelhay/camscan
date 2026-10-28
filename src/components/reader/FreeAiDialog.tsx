@@ -49,7 +49,15 @@ function loadPuter(): Promise<void> {
   if (window.puter?.ai?.chat) return Promise.resolve();
 
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-camscan-puter]');
+    let existing = document.querySelector<HTMLScriptElement>('script[data-camscan-puter]');
+    if (existing?.dataset.camscanFailed === 'true') {
+      existing.remove();
+      existing = null;
+    }
+    if (existing?.dataset.camscanLoaded === 'true' && !window.puter?.ai?.chat) {
+      existing.remove();
+      existing = null;
+    }
     const script = existing ?? document.createElement('script');
     let settled = false;
 
@@ -61,6 +69,7 @@ function loadPuter(): Promise<void> {
       if (settled) return;
       settled = true;
       clean();
+      script.dataset.camscanLoaded = 'true';
       if (window.puter?.ai?.chat) resolve();
       else reject(new Error('Puter loaded but its AI API was not available. Try again.'));
     };
@@ -68,6 +77,8 @@ function loadPuter(): Promise<void> {
       if (settled) return;
       settled = true;
       clean();
+      script.dataset.camscanFailed = 'true';
+      script.remove();
       reject(new Error('Could not load the AI service. Check your internet connection and try again.'));
     };
 
