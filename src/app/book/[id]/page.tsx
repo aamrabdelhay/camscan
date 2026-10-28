@@ -228,7 +228,7 @@ export default function ReaderPage({ params, searchParams }: Props) {
     if (!model || !book) return;
     try {
       const structured = toStructuredOcrJson(model);
-      const blob = new Blob([JSON.stringify(structured, null, 2) + '\\n'], {
+      const blob = new Blob([JSON.stringify(structured, null, 2) + '\n'], {
         type: 'application/json;charset=utf-8',
       });
       downloadBlob(blob, safeFilename(`${book.title}-page-${index + 1}`, 'json'));
