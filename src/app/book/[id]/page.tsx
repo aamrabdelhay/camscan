@@ -17,6 +17,7 @@ import { useToast } from '@/components/Toast';
 import { AppHeader } from '@/components/AppHeader';
 import { Badge, Button, Card, EmptyState, Field, Modal, Progress, Select, Spinner, StatusPill } from '@/components/ui';
 import { ReplicaPage, ComfortablePage } from '@/components/reader/ReplicaPage';
+import { FreeAiDialog } from '@/components/reader/FreeAiDialog';
 import { t } from '@/lib/i18n';
 import { getSearchIndex } from '@/lib/search';
 import { highlightSegments } from '@/lib/normalize';
@@ -50,6 +51,7 @@ export default function ReaderPage({ params, searchParams }: Props) {
   const [draftModel, setDraftModel] = useState<PageModel | null>(null);
   const [saving, setSaving] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [showOutlines, setShowOutlines] = useState(false);
@@ -367,6 +369,9 @@ export default function ReaderPage({ params, searchParams }: Props) {
               <Button size="sm" variant="secondary">📷 {t(lang, 'continueScanning')}</Button>
             </Link>
             <Button size="sm" variant="accent" onClick={() => setExportOpen(true)}>{t(lang, 'exportPdf')}</Button>
+            <Button size="sm" variant="secondary" disabled={!model || !modelPlainText(model).trim()} onClick={() => setAiOpen(true)}>
+              ✦ {lang === 'ar' ? 'مساعد AI' : 'AI assistant'}
+            </Button>
             <Button size="sm" variant="secondary" disabled={!model} onClick={exportStructuredJson}>
               {lang === 'ar' ? 'تصدير OCR JSON' : 'Export OCR JSON'}
             </Button>
@@ -647,6 +652,16 @@ export default function ReaderPage({ params, searchParams }: Props) {
         book={book}
         pages={pages}
         lang={lang}
+      />
+
+      <FreeAiDialog
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        lang={lang}
+        bookTitle={book.title}
+        pageNumber={index + 1}
+        pageText={model ? modelPlainText(model) : current?.plainText ?? ''}
+        bookText={pages.map((p, i) => `--- ${lang === 'ar' ? 'صفحة' : 'Page'} ${i + 1} ---\\n${i === index && model ? modelPlainText(model) : p.plainText ?? ''}`).filter((text) => text.trim()).join('\\n\\n')}
       />
 
       <Modal
