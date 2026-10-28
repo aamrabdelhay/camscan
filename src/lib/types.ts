@@ -117,8 +117,11 @@ export interface PageBlock {
 }
 
 export interface PageBlockLine {
+  /** Exact OCR line text, kept separately from the block's joined display text. */
   text: string;
   bbox: NormBox;
+  /** 0..100 confidence of this physical line; optional for older stored models. */
+  confidence?: number;
 }
 
 export type PageStatus =

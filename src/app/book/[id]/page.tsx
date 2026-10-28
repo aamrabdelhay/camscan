@@ -21,6 +21,7 @@ import { t } from '@/lib/i18n';
 import { getSearchIndex } from '@/lib/search';
 import { highlightSegments } from '@/lib/normalize';
 import { modelConfidence, modelPlainText } from '@/lib/pageModel';
+import { toStructuredOcrJson } from '@/lib/ocr/structuredOutput';
 import { normalizeSearchText } from '@/lib/repository';
 import { getProcessingPool } from '@/lib/pipeline';
 import { exportBookToPdf, downloadBlob, safeFilename } from '@/lib/pdf/browserExport';
@@ -223,6 +224,20 @@ export default function ReaderPage({ params, searchParams }: Props) {
     setDraftModel(null);
   };
 
+  const exportStructuredJson = () => {
+    if (!model || !book) return;
+    try {
+      const structured = toStructuredOcrJson(model);
+      const blob = new Blob([JSON.stringify(structured, null, 2) + '\n'], {
+        type: 'application/json;charset=utf-8',
+      });
+      downloadBlob(blob, safeFilename(`${book.title}-page-${index + 1}`, 'json'));
+      push(lang === 'ar' ? 'تم تصدير بيانات OCR بصيغة JSON' : 'OCR JSON exported', 'success');
+    } catch (err) {
+      push((err as Error).message || (lang === 'ar' ? 'تعذر تصدير JSON' : 'Could not export JSON'), 'error');
+    }
+  };
+
   /* ---------------- page management ---------------- */
   const movePage = async (dir: -1 | 1) => {
     if (!current) return;
@@ -352,6 +367,9 @@ export default function ReaderPage({ params, searchParams }: Props) {
               <Button size="sm" variant="secondary">📷 {t(lang, 'continueScanning')}</Button>
             </Link>
             <Button size="sm" variant="accent" onClick={() => setExportOpen(true)}>{t(lang, 'exportPdf')}</Button>
+            <Button size="sm" variant="secondary" disabled={!model} onClick={exportStructuredJson}>
+              {lang === 'ar' ? 'تصدير OCR JSON' : 'Export OCR JSON'}
+            </Button>
             <Button size="sm" variant="ghost" onClick={() => setManageOpen(true)}>⋯</Button>
           </div>
         </div>

@@ -339,7 +339,7 @@ export function extractLines(
         };
       });
       return {
-        text: (line.text ?? '').replace(/\s+/g, ' ').trim(),
+        text: (line.text ?? '').trim(),
         confidence: typeof line.confidence === 'number' ? line.confidence : 0,
         bbox,
         words,
