@@ -759,23 +759,52 @@ function AddBookDialog({
 
 function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose: () => void; onSaved: () => void }) {
   const { repo, settings } = useApp();
+  const { push } = useToast();
   const lang = settings.uiLanguage;
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [details, setDetails] = useState({
+    subtitle: '',
+    publisher: '',
+    publicationYear: '',
+    edition: '',
+    isbn: '',
+    language: 'ar' as BookLanguage,
+    category: '',
+    description: '',
+    notes: '',
+    additionalLanguages: [] as string[],
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setTitle(book?.title ?? '');
     setAuthor(book?.author ?? '');
+    setDetails({
+      subtitle: book?.subtitle ?? '',
+      publisher: book?.publisher ?? '',
+      publicationYear: book?.publicationYear ?? '',
+      edition: book?.edition ?? '',
+      isbn: book?.isbn ?? '',
+      language: book?.language ?? 'ar',
+      category: book?.category ?? '',
+      description: book?.description ?? '',
+      notes: book?.notes ?? '',
+      additionalLanguages: book?.additionalLanguages ?? [],
+    });
   }, [book]);
 
   if (!book) return null;
+
+  const updateDetail = <K extends keyof typeof details>(key: K, value: (typeof details)[K]) => {
+    setDetails((current) => ({ ...current, [key]: value }));
+  };
 
   return (
     <Modal
       open
       onClose={onClose}
-      title={t(lang, 'rename')}
+      title={lang === 'ar' ? 'تعديل بيانات الكتاب' : 'Edit book details'}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>{t(lang, 'cancel')}</Button>
@@ -784,9 +813,19 @@ function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose
             loading={saving}
             onClick={async () => {
               setSaving(true);
-              await repo.updateBook(book.id, { title: title.trim() || book.title, author });
-              setSaving(false);
-              onSaved();
+              try {
+                await repo.updateBook(book.id, {
+                  title: title.trim() || book.title,
+                  author: author.trim(),
+                  ...details,
+                });
+                push(lang === 'ar' ? 'تم حفظ بيانات الكتاب' : 'Book details saved', 'success');
+                onSaved();
+              } catch (error) {
+                push((error as Error).message || (lang === 'ar' ? 'تعذر حفظ بيانات الكتاب' : 'Could not save book details'), 'error');
+              } finally {
+                setSaving(false);
+              }
             }}
           >
             {t(lang, 'save')}
@@ -794,9 +833,47 @@ function EditBookDialog({ book, onClose, onSaved }: { book: Book | null; onClose
         </>
       }
     >
-      <div className="space-y-3">
-        <Field label={t(lang, 'title')} value={title} onChange={(e) => setTitle(e.target.value)} />
-        <Field label={t(lang, 'author')} value={author} onChange={(e) => setAuthor(e.target.value)} />
+      <div className="max-h-[70vh] space-y-3 overflow-y-auto pe-1">
+        <Field label={t(lang, 'title')} value={title} onChange={(e) => setTitle(e.target.value)} required />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t(lang, 'author')} value={author} onChange={(e) => setAuthor(e.target.value)} />
+          <Select label={t(lang, 'primaryLanguage')} value={details.language} onChange={(e) => updateDetail('language', e.target.value as BookLanguage)}>
+            {LANGUAGES.map((item) => (
+              <option key={item.code} value={item.code}>{lang === 'ar' ? item.labelAr : item.label}</option>
+            ))}
+          </Select>
+          <Field label={t(lang, 'subtitle')} value={details.subtitle} onChange={(e) => updateDetail('subtitle', e.target.value)} />
+          <Field label={t(lang, 'publisher')} value={details.publisher} onChange={(e) => updateDetail('publisher', e.target.value)} />
+          <Field label={t(lang, 'publicationYear')} value={details.publicationYear} onChange={(e) => updateDetail('publicationYear', e.target.value)} />
+          <Field label={t(lang, 'edition')} value={details.edition} onChange={(e) => updateDetail('edition', e.target.value)} />
+          <Field label={t(lang, 'isbn')} value={details.isbn} onChange={(e) => updateDetail('isbn', e.target.value)} />
+          <Field label={t(lang, 'category')} value={details.category} onChange={(e) => updateDetail('category', e.target.value)} />
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">{t(lang, 'additionalLanguages')}</label>
+            <select
+              multiple
+              size={Math.min(4, LANGUAGES.length)}
+              value={details.additionalLanguages}
+              onChange={(e) => updateDetail('additionalLanguages', Array.from(e.currentTarget.selectedOptions, (option) => option.value))}
+              className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm"
+            >
+              {LANGUAGES.filter((item) => item.code !== details.language).map((item) => (
+                <option key={item.code} value={item.code}>{lang === 'ar' ? item.labelAr : item.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-[var(--camscan-text-muted)]">
+              {lang === 'ar' ? 'يمكن اختيار أكثر من لغة باستخدام Ctrl أو ⌘.' : 'Select multiple languages with Ctrl or ⌘.'}
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">{t(lang, 'description')}</label>
+            <textarea value={details.description} onChange={(e) => updateDetail('description', e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">{t(lang, 'notes')}</label>
+            <textarea value={details.notes} onChange={(e) => updateDetail('notes', e.target.value)} rows={2} className="w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 py-2 text-sm" />
+          </div>
+        </div>
       </div>
     </Modal>
   );
