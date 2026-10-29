@@ -227,6 +227,22 @@ async function main() {
   check('replica renders real text (not a page image)', (replicaInfo?.textLength ?? 0) > 30, `${replicaInfo?.textLength} chars`);
   check('replica blocks carry the sampled paper colour', replicaInfo?.bg !== 'rgba(0, 0, 0, 0)', replicaInfo?.bg);
 
+  // Comfortable mode must use the app theme's contrasting text colour,
+  // not the potentially pale ink colour sampled from the scanned page.
+  await page.getByRole('tab').nth(3).click();
+  const comfortableColors = await page.evaluate(() => {
+    const sample = [...document.querySelectorAll('article p')].find((p) => (p.textContent ?? '').trim().length > 0);
+    if (!sample) return null;
+    return {
+      text: getComputedStyle(sample).color,
+      themeText: getComputedStyle(document.body).color,
+    };
+  });
+  check('comfortable mode uses readable theme text colour',
+    Boolean(comfortableColors && comfortableColors.text === comfortableColors.themeText),
+    comfortableColors ? `${comfortableColors.text} vs ${comfortableColors.themeText}` : 'no text paragraph');
+  await page.getByRole('tab').first().click();
+
   // Edit the first text block.
   await page.getByRole('button', { name: /تحرير/ }).click();
   const firstBlock = page.locator('[data-testid="replica-page"] [contenteditable="true"]').first();
