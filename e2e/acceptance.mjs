@@ -208,6 +208,7 @@ async function main() {
   /* ---------------------------------------------------------------- */
   console.log('\n── 4. Reader: real text, edit, persist, search ──');
   await page.goto(`${BASE}/book/${bookId}`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab').first().click();
   await page.waitForSelector('[data-testid="replica-page"]', { timeout: 20000 });
 
   // Replica must contain real text nodes, and no full-page <img> inside it.
@@ -239,6 +240,7 @@ async function main() {
 
   // Reload → the edit must persist.
   await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('tab').first().click();
   await page.waitForSelector('[data-testid="replica-page"]', { timeout: 20000 });
   const afterReload = await page.evaluate(() => document.querySelector('[data-testid="replica-page"]')?.textContent ?? '');
   check('edit survived reload', afterReload.includes('نص صحيح للاختبار العربي'));
@@ -255,6 +257,7 @@ async function main() {
   /* ---------------------------------------------------------------- */
   console.log('\n── 5. Side-by-side proofreading view ──');
   await page.goto(`${BASE}/book/${bookId}`, { waitUntil: 'networkidle' });
+  await page.getByRole('tab').first().click();
   await page.waitForSelector('[data-testid="replica-page"]');
   await page.getByRole('tab', { name: /مقارنة/ }).click();
   await page.waitForTimeout(1200);
