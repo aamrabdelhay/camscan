@@ -156,7 +156,7 @@ export function FreeAiDialog({
           <p className="mt-2 text-xs leading-5 text-[var(--camscan-text-muted)]">
             {ar
               ? 'صور الكتاب والنص الأصلي لا يُرسلان. بعد الموافقة، يُرسل النص المحدد فقط إلى مزود الذكاء الاصطناعي المحدد عبر CamScan، باستخدام النموذج المجاني فقط ومن دون تحويل إلى نموذج مدفوع.'
-              : 'Your book images and saved OCR text stay in CamScan. After consent, only the selected OCR text is sent through CamScan to the selected provider's free model. No paid fallback is used.'}
+              : 'Your book images and saved OCR text stay in CamScan. After consent, only the selected OCR text is sent through CamScan to the selected provider’s free model. No paid fallback is used.'}
           </p>
         </div>
 
@@ -281,7 +281,7 @@ export function FreeAiDialog({
             <span className="mt-1 block text-xs leading-5 text-[var(--camscan-text-muted)]">
               {ar
                 ? 'يُستخدم النموذج المجاني للمزود المحدد فقط، من دون بدائل مدفوعة. لا تُحفظ المفاتيح في localStorage أو قاعدة البيانات، وتُمسح من الواجهة عند إغلاق النافذة. قد توجد حدود استخدام وتغيّر في توفر النماذج المجانية.'
-                : 'Only the selected provider's free model is used, with no paid fallback. The key is not stored in localStorage or a database and is cleared from the dialog when you close it. Free models can be rate-limited or temporarily unavailable.'}
+                : 'Only the selected provider’s free model is used, with no paid fallback. The key is not stored in localStorage or a database and is cleared from the dialog when you close it. Free models can be rate-limited or temporarily unavailable.'}
               {' '}
               {ar
                 ? 'لا ترسل نصوصًا سرية أو محمية إلا إذا كان مسموحًا لك مشاركتها مع المزود.'
@@ -301,7 +301,7 @@ export function FreeAiDialog({
             <p className="font-medium">{ar ? 'تعذر إكمال طلب الذكاء الاصطناعي' : 'The AI request failed'}</p>
             <p className="mt-1 break-words">{error}</p>
             <p className="mt-1 text-xs text-[var(--camscan-text-muted)]">
-              {ar ? 'تحقق من مفتاح المزود المحدد وحدود الاستخدام المجاني، ثم أعد المحاولة.' : 'Check the selected provider's key and free-tier limits, then retry.'}
+              {ar ? 'تحقق من مفتاح المزود المحدد وحدود الاستخدام المجاني، ثم أعد المحاولة.' : 'Check the selected provider’s key and free-tier limits, then retry.'}
             </p>
           </div>
         ) : null}
