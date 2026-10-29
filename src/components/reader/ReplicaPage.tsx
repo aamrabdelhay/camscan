@@ -309,7 +309,7 @@ export function ComfortablePage({
           fontFamily: block.fontFamily,
           fontWeight: block.fontWeight,
           fontStyle: block.italic ? 'italic' : 'normal',
-          color: block.color,
+          color: 'var(--camscan-text)',
           direction: block.direction,
         };
         if (onBlockChange) {
