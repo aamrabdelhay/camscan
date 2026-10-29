@@ -261,7 +261,7 @@ export function FreeAiDialog({
               {provider === 'gemini' ? 'Google AI Studio API Keys' : 'OpenRouter API Keys'}
             </a>
             {provider === 'gemini'
-              ? (ar ? '. اختر مفتاح Gemini من AI Studio. يستخدم CamScan نموذج Gemini Flash-Lite ويعرض أخطاء الحصة المجانية دون التحويل إلى نموذج مدفوع.' : '. Use a Gemini key from AI Studio. CamScan uses Gemini Flash-Lite and reports free-quota errors without switching to a paid model.')
+              ? (ar ? '. اختر مفتاح Gemini من AI Studio. يستخدم CamScan نموذج Gemini Flash-Lite دون التحويل إلى نموذج مدفوع. تنبيه: في الخطة المجانية، قد تستخدم Google النصوص المرسلة لتحسين منتجاتها؛ لا ترسل بيانات سرية أو شخصية.' : '. Use a Gemini key from AI Studio. CamScan uses Gemini Flash-Lite and never switches to a paid model. Note: Google may use submitted data from the free tier to improve its products; do not send confidential or personal information.')
               : (ar ? '. يستخدم CamScan الموجّه المجاني بسعر صفر ولا يحدد أي موديل مدفوع.' : '. CamScan uses the $0 free router and does not select a paid model.')}
           </p>
         </div>
