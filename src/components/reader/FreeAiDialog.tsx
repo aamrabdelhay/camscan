@@ -247,7 +247,7 @@ export function FreeAiDialog({
             <span className="mb-1.5 block font-medium">{ar ? 'مزود الذكاء الاصطناعي' : 'AI provider'}</span>
             <select
               value={provider}
-              onChange={(event) => { setProvider(event.target.value as Provider); setApiKey(''); setError(''); setOutput(''); setModelUsed(''); }}
+              onChange={(event) => { setProvider(event.target.value as Provider); setError(''); setOutput(''); setModelUsed(''); }}
               disabled={busy}
               className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3"
             >
