@@ -230,6 +230,18 @@ export function FreeAiDialog({
 
         <div className="space-y-2">
           <label className="block text-sm">
+            <span className="mb-1.5 block font-medium">{ar ? 'مزود الذكاء الاصطناعي' : 'AI provider'}</span>
+            <select
+              value={provider}
+              onChange={(event) => { setProvider(event.target.value as Provider); setError(''); setOutput(''); setModelUsed(''); }}
+              disabled={busy}
+              className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3"
+            >
+              <option value="openrouter">OpenRouter — free router ($0)</option>
+              <option value="gemini">Google Gemini — free-tier model</option>
+            </select>
+          </label>
+          <label className="block text-sm">
             <span className="mb-1.5 block font-medium">{ar ? (provider === 'gemini' ? 'مفتاح Google Gemini API' : 'مفتاح OpenRouter المجاني') : (provider === 'gemini' ? 'Google Gemini API key' : 'Free OpenRouter API key')}</span>
             <input
               type="password"
@@ -242,18 +254,6 @@ export function FreeAiDialog({
               placeholder={ar ? 'أدخل المفتاح هنا؛ لن يُحفظ بعد إغلاق النافذة' : 'Enter the key; it will not be saved after closing'}
               className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 font-mono text-sm"
             />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1.5 block font-medium">{ar ? 'مزود الذكاء الاصطناعي' : 'AI provider'}</span>
-            <select
-              value={provider}
-              onChange={(event) => { setProvider(event.target.value as Provider); setError(''); setOutput(''); setModelUsed(''); }}
-              disabled={busy}
-              className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3"
-            >
-              <option value="openrouter">OpenRouter — free router ($0)</option>
-              <option value="gemini">Google Gemini — free-tier model</option>
-            </select>
           </label>
           <p className="text-xs leading-5 text-[var(--camscan-text-muted)]">
             {ar ? 'أنشئ مفتاحًا من ' : 'Create a key at '}
