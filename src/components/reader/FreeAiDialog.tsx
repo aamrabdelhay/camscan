@@ -155,8 +155,8 @@ export function FreeAiDialog({
           </p>
           <p className="mt-2 text-xs leading-5 text-[var(--camscan-text-muted)]">
             {ar
-              ? 'صور الكتاب والنص الأصلي لا يُرسلان. بعد الموافقة، يُرسل النص المحدد فقط إلى موجّه OpenRouter المجاني بسعر صفر، من خلال CamScan، من دون أي تحويل لنموذج مدفوع.'
-              : 'Your book images and saved OCR text stay in CamScan. After consent, only the selected OCR text is sent through CamScan to OpenRouter’s $0 free-model router. No paid fallback is used.'}
+              ? 'صور الكتاب والنص الأصلي لا يُرسلان. بعد الموافقة، يُرسل النص المحدد فقط إلى مزود الذكاء الاصطناعي المحدد عبر CamScan، باستخدام النموذج المجاني فقط ومن دون تحويل إلى نموذج مدفوع.'
+              : 'Your book images and saved OCR text stay in CamScan. After consent, only the selected OCR text is sent through CamScan to the selected provider's free model. No paid fallback is used.'}
           </p>
         </div>
 
