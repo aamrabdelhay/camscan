@@ -73,4 +73,40 @@ describe('POST /api/ai/free', () => {
     expect(result.error).toContain('rate limit');
     expect(result.error).not.toContain('private provider diagnostic');
   });
+
+  it('routes Gemini keys to the free-tier Flash-Lite model and parses its response', async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit): Promise<Response> =>
+        new Response(JSON.stringify({
+          candidates: [{ content: { parts: [{ text: 'إجابة عربية صحيحة.' }] } }],
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await POST(makeRequest({
+      provider: 'gemini',
+      apiKey: 'AIzaSyTestGeminiApiKey1234567890',
+      prompt: 'اشرح النص التالي.',
+    }));
+
+    expect(response.status).toBe(200);
+    const [url, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    expect(String(url)).toContain('/v1beta/models/gemini-3.1-flash-lite:generateContent');
+    expect(init.headers).toMatchObject({ 'x-goog-api-key': 'AIzaSyTestGeminiApiKey1234567890' });
+    const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(payload).toHaveProperty('contents');
+    expect(payload).not.toHaveProperty('models');
+    expect(payload).not.toHaveProperty('fallbacks');
+
+    const result = await response.json() as { text: string; model: string; provider: string };
+    expect(result).toEqual({
+      text: 'إجابة عربية صحيحة.',
+      model: 'gemini-3.1-flash-lite',
+      provider: 'gemini',
+    });
+  });
+
 });
