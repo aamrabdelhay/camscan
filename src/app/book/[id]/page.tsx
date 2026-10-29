@@ -44,7 +44,7 @@ export default function ReaderPage({ params, searchParams }: Props) {
   const lang = settings.uiLanguage;
 
   const [index, setIndex] = useState(() => Math.max(0, Number(sp.page ?? 1) - 1));
-  const [view, setView] = useState<ViewMode>('replica');
+  const [view, setView] = useState<ViewMode>('original');
   const [zoom, setZoom] = useState(1);
   const [query, setQuery] = useState(sp.q ?? '');
   const [editing, setEditing] = useState(false);
