@@ -94,7 +94,7 @@ describe('POST /api/ai/free', () => {
 
     expect(response.status).toBe(200);
     const [url, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
-    expect(String(url)).toContain('/v1beta/models/gemini-2.5-flash-lite:generateContent');
+    expect(String(url)).toContain('/v1beta/models/gemini-3.1-flash-lite:generateContent');
     expect(init.headers).toMatchObject({ 'x-goog-api-key': 'AIzaSyTestGeminiApiKey1234567890' });
     const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(payload).toHaveProperty('contents');
@@ -104,7 +104,7 @@ describe('POST /api/ai/free', () => {
     const result = await response.json() as { text: string; model: string; provider: string };
     expect(result).toEqual({
       text: 'إجابة عربية صحيحة.',
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-3.1-flash-lite',
       provider: 'gemini',
     });
   });
