@@ -16,6 +16,7 @@ import { Button, Modal } from '@/components/ui';
 type UiLanguage = 'ar' | 'en';
 type Task = 'summarize' | 'explain' | 'translate' | 'proofread' | 'ask';
 type SourceScope = 'page' | 'book';
+type Provider = 'openrouter' | 'gemini';
 
 interface FreeAiDialogProps {
   open: boolean;
@@ -69,6 +70,7 @@ export function FreeAiDialog({
   const [scope, setScope] = useState<SourceScope>('page');
   const [targetLanguage, setTargetLanguage] = useState<'ar' | 'en'>(ar ? 'en' : 'ar');
   const [question, setQuestion] = useState('');
+  const [provider, setProvider] = useState<Provider>('openrouter');
   const [apiKey, setApiKey] = useState('');
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -102,7 +104,7 @@ export function FreeAiDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify({ apiKey: apiKey.trim(), prompt }),
+        body: JSON.stringify({ provider, apiKey: apiKey.trim(), prompt }),
       });
       const result: unknown = await response.json().catch(() => null);
       const resultRecord = result && typeof result === 'object'
@@ -228,10 +230,10 @@ export function FreeAiDialog({
 
         <div className="space-y-2">
           <label className="block text-sm">
-            <span className="mb-1.5 block font-medium">{ar ? 'مفتاح OpenRouter المجاني' : 'Free OpenRouter API key'}</span>
+            <span className="mb-1.5 block font-medium">{ar ? (provider === 'gemini' ? 'مفتاح Google Gemini API' : 'مفتاح OpenRouter المجاني') : (provider === 'gemini' ? 'Google Gemini API key' : 'Free OpenRouter API key')}</span>
             <input
               type="password"
-              name="openrouter-api-key"
+              name="ai-provider-api-key"
               autoComplete="off"
               spellCheck={false}
               value={apiKey}
@@ -241,12 +243,26 @@ export function FreeAiDialog({
               className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3 font-mono text-sm"
             />
           </label>
+          <label className="block text-sm">
+            <span className="mb-1.5 block font-medium">{ar ? 'مزود الذكاء الاصطناعي' : 'AI provider'}</span>
+            <select
+              value={provider}
+              onChange={(event) => { setProvider(event.target.value as Provider); setApiKey(''); setError(''); setOutput(''); setModelUsed(''); }}
+              disabled={busy}
+              className="h-11 w-full rounded-xl border border-[var(--camscan-border)] bg-[var(--camscan-surface)] px-3"
+            >
+              <option value="openrouter">OpenRouter — free router ($0)</option>
+              <option value="gemini">Google Gemini — free-tier model</option>
+            </select>
+          </label>
           <p className="text-xs leading-5 text-[var(--camscan-text-muted)]">
             {ar ? 'أنشئ مفتاحًا من ' : 'Create a key at '}
-            <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-              OpenRouter API Keys
+            <a href={provider === 'gemini' ? 'https://aistudio.google.com/api-keys' : 'https://openrouter.ai/settings/keys'} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+              {provider === 'gemini' ? 'Google AI Studio API Keys' : 'OpenRouter API Keys'}
             </a>
-            {ar ? '. استخدم حسابًا مجانيًا فقط؛ لن يطلب CamScan رصيدًا ولن يحدد أي موديل مدفوع.' : '. Use a free account; CamScan will not require credits or select a paid model.'}
+            {provider === 'gemini'
+              ? (ar ? '. اختر مفتاح Gemini من AI Studio. يستخدم CamScan نموذج Gemini Flash-Lite ويعرض أخطاء الحصة المجانية دون التحويل إلى نموذج مدفوع.' : '. Use a Gemini key from AI Studio. CamScan uses Gemini Flash-Lite and reports free-quota errors without switching to a paid model.')
+              : (ar ? '. يستخدم CamScan الموجّه المجاني بسعر صفر ولا يحدد أي موديل مدفوع.' : '. CamScan uses the $0 free router and does not select a paid model.')}
           </p>
         </div>
 
@@ -264,8 +280,8 @@ export function FreeAiDialog({
             </span>
             <span className="mt-1 block text-xs leading-5 text-[var(--camscan-text-muted)]">
               {ar
-                ? 'يُستخدم المسار openrouter/free ذي السعر صفر فقط، من دون بدائل مدفوعة. لا تُحفظ المفاتيح في localStorage أو قاعدة البيانات، وتُمسح من الواجهة عند إغلاق النافذة. قد تظل هناك حدود يومية وتغيّر في توفر النماذج المجانية.'
-                : 'Only the $0 openrouter/free route is used, with no paid fallback. The key is not stored in localStorage or a database and is cleared from the dialog when you close it. Free models can be rate-limited or temporarily unavailable.'}
+                ? 'يُستخدم النموذج المجاني للمزود المحدد فقط، من دون بدائل مدفوعة. لا تُحفظ المفاتيح في localStorage أو قاعدة البيانات، وتُمسح من الواجهة عند إغلاق النافذة. قد توجد حدود استخدام وتغيّر في توفر النماذج المجانية.'
+                : 'Only the selected provider's free model is used, with no paid fallback. The key is not stored in localStorage or a database and is cleared from the dialog when you close it. Free models can be rate-limited or temporarily unavailable.'}
               {' '}
               {ar
                 ? 'لا ترسل نصوصًا سرية أو محمية إلا إذا كان مسموحًا لك مشاركتها مع المزود.'
@@ -285,7 +301,7 @@ export function FreeAiDialog({
             <p className="font-medium">{ar ? 'تعذر إكمال طلب الذكاء الاصطناعي' : 'The AI request failed'}</p>
             <p className="mt-1 break-words">{error}</p>
             <p className="mt-1 text-xs text-[var(--camscan-text-muted)]">
-              {ar ? 'تحقق من مفتاح OpenRouter وحدود النماذج المجانية، ثم أعد المحاولة.' : 'Check your OpenRouter key and free-model limits, then retry.'}
+              {ar ? 'تحقق من مفتاح المزود المحدد وحدود الاستخدام المجاني، ثم أعد المحاولة.' : 'Check the selected provider's key and free-tier limits, then retry.'}
             </p>
           </div>
         ) : null}
